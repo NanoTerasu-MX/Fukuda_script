@@ -50,7 +50,7 @@ while true; do
 				# 回折データの転送を実行
 				if [ "$(ls -A "$DATA_DIR")" ]; then
 					log "Data exists. Starting transferring. : $DATA_DIR → $DESTI_DIR$DEST_SUBDIR/"
-					s3cmd sync --recursive --no-check-md5 "$DATA_DIR" "$DESTI_DIR$DEST_SUBDIR/" >> "$LOG" 2>&1
+					s5cmd --profile default --endpoint-url=https://s3ds.cc.tohoku.ac.jp sync "$DATA_DIR" "$DESTI_DIR$DEST_SUBDIR/" >> "$LOG" 2>&1
 					log "Complete to transfer of data. : $DATA_DIR"
 					mv "$FILE" "$WATCH_DIR/uploaded"
 
