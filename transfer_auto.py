@@ -20,7 +20,7 @@ def transfer():
     pattern = '*_BL09U'
     
     # destination directory
-    desti_dir = 's3://mxdata/mxdata'
+    desti_dir = 's3://mxdata/mxdata/mxstaff/Data'
 
     log.info('Starting automatically transferring.')
     flag = True
