@@ -30,7 +30,8 @@ def transfer():
             if load_dirs:
                 for direct in load_dirs:
                     if os.path.isdir(direct):
-                        cmd = f"""s5cmd \
+                        cmd = f"""time \
+                                 /data/mxstaff/s3command/bins/s5cmd \
                                  --profile default \
                                  --endpoint-url=https://s3ds.cc.tohoku.ac.jp \
                                  sync \
