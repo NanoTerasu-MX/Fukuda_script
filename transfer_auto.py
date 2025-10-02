@@ -2,8 +2,9 @@ import os
 import subprocess as sp
 import logging as log
 import glob
+import time
 
-log.basisConfig(
+log.basicConfig(
     filename='transfer.log',
     level=log.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -24,32 +25,37 @@ def transfer():
     log.info('Starting automatically transferring.')
     flag = True
     while flag == True:
-        load_dir = os.path.isdir(os.path.join(watch_dir, pattern))
-        if os.path.isfile(load_dir):
-            log.info(f'{load_dir} is exist')
+        load_dirs = glob.glob(os.path.join(watch_dir, pattern))
+            
+            if load_dirs:
+                for direct in load_dirs:
+                    if os.path.isdir(direct):
+                        cmd = f"""s5cmd \
+                                 --profile default \
+                                 --endpoint-url=https://s3ds.cc.tohoku.ac.jp \
+                                 sync \
+                                 {direct} \
+                                 {desti_dir}
+                               """
+                   
+                        try: 
+                            p = sp.run(cmd, 
+                                       shell=True,
+                                       text=True,
+                                       check=True,
+                                       capture_output=True)
+                        
+                            log.info(f'Transfer finished: {direct}\n
+                                       stdout={p.stdout}\n
+                                       stderr={p.stderr}')
 
-            for direct in glob.glob(load_dir):
-                cmd = f"""s5cmd \
-                         --profile default \
-                         --endpoint-url=https://s3ds.cc.tohoku.ac.jp \
-                         sync \
-                         {direct} \
-                         {desti_dir}
-                       """
-                
-                p = sp.run(cmd, shell=True, check=True)
+                        except sp.CalledProcessError as e:
+                             log.error(f'Error transferring {direct}\n
+                                         Return code: {e.returncode}\n
+                                         stdout={e.stdout}\n
+                                         stderr={e.stderr}')
 
-                stdout, stderr = p.stdout, p.stderr
-
-                if p.returncode != 0:
-                    log.info(f"""{cmd} is abnormal termination\n
-                                 returncode={p.returncode}\n
-                                 stdout={stdout}\n
-                                 stderr={stderr}\n
-                              """)
-
-        else:
-            continue
+            time.sleep(10)
 
 def main():
     transfer()
