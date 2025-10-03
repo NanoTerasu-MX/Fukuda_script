@@ -6,6 +6,7 @@ import sys
 from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers.polling import PollingObserver
 
 log.basicConfig(
     filename='transfer.log',
@@ -21,7 +22,7 @@ def usage():
     print('Usage: python script.py <watch_dir>')
     sys.exit(1)
 
-def put_file(pathfile):
+def put_file(pathfile, dirpath):
 
     cmd = [
            's3cmd',
@@ -29,7 +30,7 @@ def put_file(pathfile):
            '--recursive',
            '--no-check-md5',
            pathfile, 
-           DEST_DIR
+           DEST_DIR + dirpath
            ]
 
     proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
@@ -43,11 +44,13 @@ def put_file(pathfile):
 class WatchEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         log.info(f'{event.src_path} Created')
-        put_file(event.src_path)
+        dirpath = os.path.dirname(event.src_path)
+        put_file(event.src_path, dirpath)
 
     def on_modified(self, event):
         log.info(f'{event.src_path} Changed')
-        put_file(event.src_path)
+        dirpath = os.path.dirname(event.src_path)
+        put_file(event.src_path, dirname)
             
 
 '''
@@ -68,6 +71,7 @@ class UploadHandler(FileSystemEventHandler):
 
         sp.Popen(cmd, stdout=open('transfer.log', 'a'), stderr=subprocess.STDOUT)
 '''
+
 def initial_upload(watch_dir):
     proc = sp.Popen(['s3cmd','sync','--recursive','--no-check-md5', watch_dir, DEST_DIR],
                              stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
@@ -79,7 +83,7 @@ def initial_upload(watch_dir):
 
 def watch(watch_dir):
     event_handler = WatchEventHandler()
-    observer = Observer()
+    observer = PollingObserver()
     observer.schedule(
         event_handler,
         watch_dir,
