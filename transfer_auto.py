@@ -5,6 +5,7 @@ import time
 import sys 
 from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
+from watchdog events import FileSystemEventHandler
 
 log.basicConfig(
     filename='transfer.log',
@@ -39,10 +40,30 @@ def put_file(pathfile):
     proc.wait()
     log.info(f"Upload finished with returncode {proc.returncode}")
 
+"""
 class LoggingEventHandler2(LoggingEventHandler):
     def on_created(self, event):
         log.info(f'{event.src_path} Created')
         put_file(event.src_path)
+"""
+
+
+class UploadHandler(FileSystemEventHandler):
+    def on_created(self, event):
+        if not event.is_directory:
+            log.info(f"File created: {event.src_path}")
+            self.upload(event.src_path)
+
+    def on_modified(self, event):
+        if not event.is_directory:
+            log.info(f"File modified: {event.src_path}")
+            self.upload(event.src_path)
+
+    def upload(self, pathfile):
+        cmd = ['s3cmd', 'put', '--no-check-md5', pathfile, DEST_DIR]
+        log.info(f"Starting upload: {pathfile}")
+
+        sp.Popen(cmd, stdout=open('transfer.log', 'a'), stderr=subprocess.STDOUT)
 
 def initial_upload(watch_dir):
     proc = sp.Popen(['s3cmd','put','--recursive','--no-check-md5', watch_dir, DEST_DIR],
@@ -54,7 +75,7 @@ def initial_upload(watch_dir):
     proc.wait()
 
 def watch(watch_dir):
-    event_handler = LoggingEventHandler2()
+    event_handler = UploadHandler()
     observer = Observer()
     observer.schedule(
         event_handler,
