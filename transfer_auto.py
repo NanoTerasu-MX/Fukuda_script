@@ -85,6 +85,7 @@ def watch(watch_dir):
     observer.start()
     try:
         while True:
+            log.info("Wait 1 second...")
             time.sleep(1)
     except KeyboardInterrupt:
         observer.stop()
