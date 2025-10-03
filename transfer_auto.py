@@ -3,6 +3,7 @@ import subprocess as sp
 import logging as log
 import time
 import pynotify
+import sys 
 
 log.basicConfig(
     filename='transfer.log',
