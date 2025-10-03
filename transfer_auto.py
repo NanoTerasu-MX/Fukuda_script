@@ -50,12 +50,12 @@ class LoggingEventHandler2(LoggingEventHandler):
 
 class UploadHandler(FileSystemEventHandler):
     def on_created(self, event):
-        if not event.is_directory:
+        if event.is_directory:
             log.info(f"File created: {event.src_path}")
             self.upload(event.src_path)
 
     def on_modified(self, event):
-        if not event.is_directory:
+        if event.is_directory:
             log.info(f"File modified: {event.src_path}")
             self.upload(event.src_path)
 
@@ -86,7 +86,7 @@ def watch(watch_dir):
     try:
         while True:
             log.info("Sleep...")
-            time.sleep(1)
+            time.sleep(10)
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
@@ -99,7 +99,6 @@ def main():
     
     initial_upload(watch_dir)
 
-    #while True:
     watch(watch_dir)
 
 if __name__ == '__main__':
