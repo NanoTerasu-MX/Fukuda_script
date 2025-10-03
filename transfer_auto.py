@@ -15,7 +15,7 @@ log.basicConfig(
     )
 
 DEST_DIR = 's3://mxdata/mxdata/mxstaff/Data/'
-S5CMD = '/data/mxstaff/s3command/bins/s5cmd'
+#S5CMD = '/data/mxstaff/s3command/bins/s5cmd'
 ENDPOINT = 'https://s3ds.cc.tohoku.ac.jp'
 
 def usage():
@@ -25,10 +25,10 @@ def usage():
 def put_file(pathfile):
 
     cmd = [
-           S5CMD,
-           '--profile', 'default',
-           '--endpoint-url=' + ENDPOINT,
-           'cp',
+           's3cmd',
+           'put',
+           '--recursive',
+           '--no-check-md5',
            pathfile, 
            DEST_DIR
            ]
