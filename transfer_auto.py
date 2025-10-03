@@ -11,56 +11,64 @@ log.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-def transfer():
-    
-    # watch directory path
-    watch_dir = '/data/mxstaff/Data'
-    
-    # synchronizes directory pattern  
-    pattern = '*_BL09U'
+def usage():
+    print('Usage: python script.py <watch_dir>')
+    sys.exit(1)
+
+def transfer(watch_dir):
     
     # destination directory
-    desti_dir = 's3://mxdata/mxdata/mxstaff/Data'
-
-    log.info('Starting automatically transferring.')
+    desti_dir = 's3://mxdata/mxdata/mxstaff/Data/'
+    
+    log.info('--------------------------------------------------')
+    log.info('--------------------------------------------------')
+    log.info('---Welcome to automatically transferring system---')
+    log.info('--------------------------------------------------')
+    log.info('--------------------------------------------------')
+    
     flag = True
     while flag == True:
-        load_dirs = glob.glob(os.path.join(watch_dir, pattern))
+        if os.path.isdir(watch_dir):
+            cmd = f"""time \
+                      /data/mxstaff/s3command/bins/s5cmd \
+                      --profile default \
+                      --endpoint-url=https://s3ds.cc.tohoku.ac.jp \
+                      sync \
+                      {watch_dir} \
+                      {desti_dir}
+                   """
             
-            if load_dirs:
-                for direct in load_dirs:
-                    if os.path.isdir(direct):
-                        cmd = f"""time \
-                                 /data/mxstaff/s3command/bins/s5cmd \
-                                 --profile default \
-                                 --endpoint-url=https://s3ds.cc.tohoku.ac.jp \
-                                 sync \
-                                 {direct} \
-                                 {desti_dir}
-                               """
-                   
-                        try: 
-                            p = sp.run(cmd, 
-                                       shell=True,
-                                       text=True,
-                                       check=True,
-                                       capture_output=True)
-                        
-                            log.info(f'Transfer finished: {direct}\n
-                                       stdout={p.stdout}\n
-                                       stderr={p.stderr}')
+            try:
+                log.info(f"""Starting Transferring\n
+                             {watch_dir} ---> {desti_dir}\n""")
 
-                        except sp.CalledProcessError as e:
-                             log.error(f'Error transferring {direct}\n
-                                         Return code: {e.returncode}\n
-                                         stdout={e.stdout}\n
-                                         stderr={e.stderr}')
+                with sp.Popen(cmd, shell=True, text=True, stdout=sp.PIPE, stderr=sp.PIPE) as proc:
+                   for line in proc.stdout:
+                       log.info(line.strip())
 
-            time.sleep(10)
+                   for line in proc.stderr:
+                       log.info(line.strip())   
+
+                   proc.wait()
+                   log.info(f"""Transferring is normal termination\n
+                                {watch_dir} ---> {desti_dir}\n""")
+
+            except sp.CalledProcessError as e:
+                log.error(f"""Error transferring {direct}\n
+                              Return code: {e.returncode}\n
+                              stdout={e.stdout}\n
+                              stderr={e.stderr}""")
+
+        time.sleep(10)
 
 def main():
-    transfer()
+    if len(sys.argv) < 2:
+        usage()
+        sys.exit(1)
 
+    watch_dir = sys.argv[1]
+    
+    transfer(watch_dir)
 
 if __name__ == '__main__':
     main()
