@@ -60,7 +60,7 @@ class UploadHandler(FileSystemEventHandler):
             self.upload(event.src_path)
 
     def upload(self, pathfile):
-        cmd = ['s3cmd', 'put', '--no-check-md5', pathfile, DEST_DIR]
+        cmd = ['s3cmd', 'put', '--recursive', '--no-check-md5', pathfile, DEST_DIR]
         log.info(f"Starting upload: {pathfile}")
 
         sp.Popen(cmd, stdout=open('transfer.log', 'a'), stderr=subprocess.STDOUT)
@@ -85,7 +85,7 @@ def watch(watch_dir):
     observer.start()
     try:
         while True:
-            log.info("Wait 1 second...")
+            log.info("Sleep...")
             time.sleep(1)
     except KeyboardInterrupt:
         observer.stop()
