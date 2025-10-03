@@ -48,7 +48,12 @@ def initial_upload(watch_dir):
     for root, dirs, files in os.walk(watch_dir):
         for name in files:
             pathfile = os.path.join(root, name)
-            sp.Popen(['s3cmd','put','--no-check-md5', pathfile, DEST_DIR])
+            proc = sp.Popen(['s3cmd','put','--no-check-md5', pathfile, DEST_DIR])
+
+            for line in proc.stdout:
+                log.info(line.strip())
+
+            proc.wait()
 
 def watch(watch_dir):
     event_handler = LoggingEventHandler2()
