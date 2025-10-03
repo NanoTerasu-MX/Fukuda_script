@@ -39,7 +39,7 @@ def put_file(pathfile):
     log.info(f"Upload finished with returncode {proc.returncode}")
 
 
-class EventHandler(pynotify.ProcessEvent):
+class EventHandler(pynotify.Event):
     def process_IN_CREATE(self, event):
         if not event.dir:
             log.info(f"File created: {event.pathname}")
