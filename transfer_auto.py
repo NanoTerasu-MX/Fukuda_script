@@ -40,14 +40,17 @@ def put_file(pathfile):
     proc.wait()
     log.info(f"Upload finished with returncode {proc.returncode}")
 
-"""
-class LoggingEventHandler2(LoggingEventHandler):
+class WatchEventHandler(FileSystenEventHandler):
     def on_created(self, event):
         log.info(f'{event.src_path} Created')
         put_file(event.src_path)
-"""
 
+    def on_modified(self, event):
+        log.info(f'{event.src_path} Changed')
+        put_file(event.src_path)
+            
 
+'''
 class UploadHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory:
@@ -64,7 +67,7 @@ class UploadHandler(FileSystemEventHandler):
         log.info(f"Starting upload: {pathfile}")
 
         sp.Popen(cmd, stdout=open('transfer.log', 'a'), stderr=subprocess.STDOUT)
-
+'''
 def initial_upload(watch_dir):
     proc = sp.Popen(['s3cmd','sync','--recursive','--no-check-md5', watch_dir, DEST_DIR],
                              stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
@@ -75,7 +78,7 @@ def initial_upload(watch_dir):
     proc.wait()
 
 def watch(watch_dir):
-    event_handler = UploadHandler()
+    event_handler = WatchEventHandler()
     observer = Observer()
     observer.schedule(
         event_handler,
@@ -83,12 +86,16 @@ def watch(watch_dir):
         recursive=True
         )
     observer.start()
+    log.info(f"Starting watching {watch_dir}")
+    
     try:
         while True:
             log.info("Sleep...")
             time.sleep(10)
     except KeyboardInterrupt:
         observer.stop()
+        log.info("Stop!!!")
+
     observer.join()
 
 def main():
