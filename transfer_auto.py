@@ -28,7 +28,7 @@ def put_file(pathfile):
            '--profile', 'default',
            '--endpoint-url=' + ENDPOINT,
            'put',
-           filepath, 
+           pathfile, 
            DEST_DIR
            ]
 
@@ -58,11 +58,21 @@ class CloseHandler:
     def can_handle_event_type(self, type: EventType) -> bool:
         return EventType.CLOSE & type != 0
 
+async def stop_loop(stop_event: asyncio.Event):
+    await asyncio.sleep(10)
+    stop_event.set()
+
 async def watch_directory(watch_dir):
     with pynotify.Notifier() as notifier:
-        notifier.add_watch(watch_dir)
+        stop_Event = asyncio.Event()
+
+        notifier.add_watch(watch_dir, OpenHandler(), CloseHandler())
 
         notifier.modify_watch_event_type(watch_dir, EventType.CLOSE)
+
+        await asyncio.gather(
+                notifier.run(stop_event=stop_event),
+                stop_loop(stop_event))
 
 
 def main():
