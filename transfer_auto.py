@@ -5,7 +5,7 @@ import time
 import sys 
 from watchdog.observers import Observer
 from watchdog.events import LoggingEventHandler
-from watchdog events import FileSystemEventHandler
+from watchdog.events import FileSystemEventHandler
 
 log.basicConfig(
     filename='transfer.log',
