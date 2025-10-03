@@ -3,6 +3,7 @@ import subprocess as sp
 import logging as log
 import time
 import pynotify
+from pynotify import EventType
 import sys 
 
 log.basicConfig(
@@ -40,32 +41,28 @@ def put_file(pathfile):
     log.info(f"Upload finished with returncode {proc.returncode}")
 
 
-class EventHandler(pynotify.Event):
-    def process_IN_CREATE(self, event):
-        if not event.dir:
-            log.info(f"File created: {event.pathname}")
-            put_file(event.pathname)
+class OpenHandler:
+    def handle_event(self, event: Event) -> None:
+        # just print out what is happening
+        print(f"{event.type.name} at {event.file_path}")
 
-    def process_IN_CLOSE_WRITE(self, event):
-        if not event.dir:
-            log.info(f"File closed after write: {event.pathname}")
+    def can_handle_event_type(self, type: EventType) -> bool:
+        return EventType.OPEN & type != 0
 
-    def process_IN_MOVED_TO(self, event):
-        if not event.dir:
-            log.info(f"File moved into watched dir: {event.pathname}")
-            put_file(event.pathname)
+class CloseHandler:
+    def handle_event(self, event: Event) -> None:
+        # just print out what is happening
+        print(f"{event.type.name} at {event.file_path}")
+        put_file(str(event.file_path))
 
+    def can_handle_event_type(self, type: EventType) -> bool:
+        return EventType.CLOSE & type != 0
 
-def watch_directory(watch_dir):
-    wm = pynotify.Descriptor()
-    mask = pynotify.IN_CREATE | pynotify.IN_CLOSE_WRITE | pynotify.IN_MOVED_TO
-    handler = EventHandler()
-    notfier = pynotify.Notifier(wm, handler)
+async def watch_directory(watch_dir):
+    with pynotify.Notifier() as notifier:
+        notifier.add_watch(watch_dir)
 
-    wm.add_watch(watch_dir, mask, rec=True, auto_add=True)
-    log.info(f"Started watching {watch_dir}")
-
-    notifier.loop()
+        notifier.modify_watch_event_type(watch_dir, EventType.CLOSE)
 
 
 def main():
@@ -73,10 +70,6 @@ def main():
         usage()
 
     watch_dir = sys.argv[1]
-    
-    if not os.path.isdir(watch_dir):
-        print(f"{watch_dir} is not a valid directory.")
-        sys.exit(1)
 
     watch_directory(watch_dir)    
 
