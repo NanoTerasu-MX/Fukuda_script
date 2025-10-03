@@ -30,13 +30,13 @@ def put_file(pathfile):
            DEST_DIR
            ]
 
-   proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
+    proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
 
-   for line in proc.stdout:
-       log.info(line.strip())
+    for line in proc.stdout:
+        log.info(line.strip())
 
-   proc.wait()
-   log.info(f"Upload finished with returncode {proc.returncode}")
+    proc.wait()
+    log.info(f"Upload finished with returncode {proc.returncode}")
 
 
 class EventHandler(pynotify.ProcessEvent):
