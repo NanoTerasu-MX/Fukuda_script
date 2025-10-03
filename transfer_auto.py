@@ -28,7 +28,7 @@ def put_file(pathfile):
            S5CMD,
            '--profile', 'default',
            '--endpoint-url=' + ENDPOINT,
-           'put',
+           'cp',
            pathfile, 
            DEST_DIR
            ]
