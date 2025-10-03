@@ -98,8 +98,8 @@ def main():
     
     initial_upload(watch_dir)
 
-    while True:
-        watch(watch_dir)
+    #while True:
+    watch(watch_dir)
 
 if __name__ == '__main__':
     main()
