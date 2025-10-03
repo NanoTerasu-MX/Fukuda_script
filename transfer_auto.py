@@ -44,6 +44,11 @@ class LoggingEventHandler2(LoggingEventHandler):
         log.info(f'{event.src_path} Created')
         put_file(event.src_path)
 
+def initial_upload(watch_dir):
+    for root, dirs, files in os.walk(watch_dir):
+        for name in files:
+            pathfile = os.path.join(root, name)
+            sp.Popen(['s3cmd','put','--no-check-md5', pathfile, DEST_DIR])
 
 def watch(watch_dir):
     event_handler = LoggingEventHandler2()
@@ -67,7 +72,10 @@ def main():
 
     watch_dir = sys.argv[1]
     
-    watch(watch_dir)
+    initial_upload(watch_dir)
+
+    while True:
+        watch(watch_dir)
 
 if __name__ == '__main__':
     main()
