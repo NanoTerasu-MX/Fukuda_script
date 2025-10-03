@@ -2,7 +2,7 @@ import os
 import subprocess as sp
 import logging as log
 import time
-import pynotify
+import pyinotify
 
 log.basicConfig(
     filename='transfer.log',
@@ -19,24 +19,24 @@ def usage():
     print('Usage: python script.py <watch_dir>')
     sys.exit(1)
 
-def put_file(watch_dir):
+def put_file(pathfile):
 
     cmd = [
            S5CMD,
            '--profile', 'default',
            '--endpoint-url=' + ENDPOINT,
            'put',
-           watch_dir, 
+           filepath, 
            DEST_DIR
            ]
 
-       proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
+   proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
 
-       for line in proc.stdout:
-           log.info(line.strip())
+   for line in proc.stdout:
+       log.info(line.strip())
 
-       proc.wait()
-       log.info(f"Upload finished with returncode {proc.returncode}")
+   proc.wait()
+   log.info(f"Upload finished with returncode {proc.returncode}")
 
 
 class EventHandler(pynotify.ProcessEvent):
@@ -45,7 +45,7 @@ class EventHandler(pynotify.ProcessEvent):
             log.info(f"File created: {event.pathname}")
             put_file(event.pathname)
 
-    def process_IN_CLOSE_CREATE(self, event):
+    def process_IN_CLOSE_WRITE(self, event):
         if not event.dir:
             log.info(f"File closed after write: {event.pathname}")
 
@@ -56,10 +56,10 @@ class EventHandler(pynotify.ProcessEvent):
 
 
 def watch_directory(watch_dir):
-    wm = pynotify.WatchManager()
-    mask = pynotify.IN_CREATE | pynotify.IN_CLOSE_WRITE | pynotify.IN_MOVED_TO
+    wm = pyinotify.WatchManager()
+    mask = pyinotify.IN_CREATE | pynotify.IN_CLOSE_WRITE | pynotify.IN_MOVED_TO
     handler = EventHandler()
-    notfier = pynotify.Notifier(wm, handler)
+    notfier = pyinotify.Notifier(wm, handler)
 
     wm.add_watch(watch_dir, mask, rec=True, auto_add=True)
     log.info(f"Started watching {watch dir}")
@@ -70,10 +70,13 @@ def watch_directory(watch_dir):
 def main():
     if len(sys.argv) < 2:
         usage()
-        sys.exit(1)
 
     watch_dir = sys.argv[1]
     
+    if not os.path.isdir(watch_dir):
+        print(f"{watch_dir} is not a valid directory.")
+        sys.exit(1)
+
     watch_directory(watch_dir)    
 
 if __name__ == '__main__':
