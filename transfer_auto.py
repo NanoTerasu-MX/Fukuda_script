@@ -45,16 +45,13 @@ class LoggingEventHandler2(LoggingEventHandler):
         put_file(event.src_path)
 
 def initial_upload(watch_dir):
-    for root, dirs, files in os.walk(watch_dir):
-        for name in files:
-            pathfile = os.path.join(root, name)
-            proc = sp.Popen(['s3cmd','put','--no-check-md5', pathfile, DEST_DIR],
+    proc = sp.Popen(['s3cmd','put','--no-check-md5', watch_dir, DEST_DIR],
                              stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
 
-            for line in proc.stdout:
-                log.info(line.strip())
+    for line in proc.stdout:
+        log.info(line.strip())
 
-            proc.wait()
+    proc.wait()
 
 def watch(watch_dir):
     event_handler = LoggingEventHandler2()
