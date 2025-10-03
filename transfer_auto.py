@@ -57,7 +57,7 @@ class EventHandler(pynotify.Event):
 
 
 def watch_directory(watch_dir):
-    wm = pynotify.WatchManager()
+    wm = pynotify.Descriptor()
     mask = pynotify.IN_CREATE | pynotify.IN_CLOSE_WRITE | pynotify.IN_MOVED_TO
     handler = EventHandler()
     notfier = pynotify.Notifier(wm, handler)
