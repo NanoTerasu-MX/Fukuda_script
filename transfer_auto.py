@@ -2,7 +2,7 @@ import os
 import subprocess as sp
 import logging as log
 import time
-import pyinotify
+import pynotify
 
 log.basicConfig(
     filename='transfer.log',
@@ -56,10 +56,10 @@ class EventHandler(pynotify.ProcessEvent):
 
 
 def watch_directory(watch_dir):
-    wm = pyinotify.WatchManager()
-    mask = pyinotify.IN_CREATE | pynotify.IN_CLOSE_WRITE | pynotify.IN_MOVED_TO
+    wm = pynotify.WatchManager()
+    mask = pynotify.IN_CREATE | pynotify.IN_CLOSE_WRITE | pynotify.IN_MOVED_TO
     handler = EventHandler()
-    notfier = pyinotify.Notifier(wm, handler)
+    notfier = pynotify.Notifier(wm, handler)
 
     wm.add_watch(watch_dir, mask, rec=True, auto_add=True)
     log.info(f"Started watching {watch_dir}")
