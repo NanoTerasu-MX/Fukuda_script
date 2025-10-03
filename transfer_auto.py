@@ -5,6 +5,7 @@ import time
 import pynotify
 from pynotify import Event, EventType
 import sys 
+import asyncio
 
 log.basicConfig(
     filename='transfer.log',
