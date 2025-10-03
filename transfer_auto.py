@@ -22,7 +22,7 @@ def usage():
     print('Usage: python script.py <watch_dir>')
     sys.exit(1)
 
-def put_file(pathfile, dirpath):
+def put_file(pathfile):
 
     cmd = [
            's3cmd',
@@ -30,7 +30,7 @@ def put_file(pathfile, dirpath):
            '--recursive',
            '--no-check-md5',
            pathfile, 
-           DEST_DIR + dirpath
+           DEST_DIR
            ]
 
     proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
@@ -44,13 +44,13 @@ def put_file(pathfile, dirpath):
 class WatchEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         log.info(f'{event.src_path} Created')
-        dirpath = os.path.dirname(event.src_path)
-        put_file(event.src_path, dirpath)
+#        dirpath = os.path.dirname(event.src_path)
+        put_file(event.src_path)
 
     def on_modified(self, event):
         log.info(f'{event.src_path} Changed')
-        dirpath = os.path.dirname(event.src_path)
-        put_file(event.src_path, dirname)
+ #       dirpath = os.path.dirname(event.src_path)
+        put_file(event.src_path)
             
 
 '''
