@@ -34,8 +34,8 @@ def put_file(pathfile):
 
     proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
 
-    for line in proc.stdout:
-        log.info(line.strip())
+    log.info(f'stdout: {proc.stdout}\n
+               stderr: {proc.stderr}')
 
     proc.wait()
     log.info(f"Upload finished with returncode {proc.returncode}")
