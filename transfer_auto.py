@@ -3,7 +3,7 @@ import subprocess as sp
 import logging as log
 import time
 import pynotify
-from pynotify import EventType
+from pynotify import Event, EventType
 import sys 
 
 log.basicConfig(
