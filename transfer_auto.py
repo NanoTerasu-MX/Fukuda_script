@@ -62,7 +62,7 @@ def watch_directory(watch_dir):
     notfier = pyinotify.Notifier(wm, handler)
 
     wm.add_watch(watch_dir, mask, rec=True, auto_add=True)
-    log.info(f"Started watching {watch dir}")
+    log.info(f"Started watching {watch_dir}")
 
     notifier.loop()
 
