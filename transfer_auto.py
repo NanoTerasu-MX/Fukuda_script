@@ -82,7 +82,7 @@ def main():
 
     watch_dir = sys.argv[1]
 
-    watch_directory(watch_dir)    
+    asyncio.run(watch_directory(watch_dir))
 
 if __name__ == '__main__':
     main()
