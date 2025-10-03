@@ -40,7 +40,7 @@ def put_file(pathfile):
     proc.wait()
     log.info(f"Upload finished with returncode {proc.returncode}")
 
-class WatchEventHandler(FileSystenEventHandler):
+class WatchEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         log.info(f'{event.src_path} Created')
         put_file(event.src_path)
