@@ -14,9 +14,7 @@ log.basicConfig(
     )
 
 
-DEST_DIR = 's3://mxdata/mxdata/mxstaff/Data/'
-#S5CMD = '/data/mxstaff/s3command/bins/s5cmd'
-ENDPOINT = 'https://s3ds.cc.tohoku.ac.jp'
+DEST_DIR = 's3://mxdata/mxdata/mxstaff/test/'
 
 def usage():
     print('Usage: python script.py <watch_dir>')
@@ -46,6 +44,7 @@ class LoggingEventHandler2(LoggingEventHandler):
         log.info(f'{event.src_path} Created')
         put_file(event.src_path)
 
+
 def watch(watch_dir):
     event_handler = LoggingEventHandler2()
     observer = Observer()
@@ -57,10 +56,10 @@ def watch(watch_dir):
     observer.start()
     try:
         while True:
-            time.sleep(10)
+            time.sleep(1)
     except KeyboardInterrupt:
         observer.stop()
-        observer.join()
+    observer.join()
 
 def main():
     if len(sys.argv) < 2:
