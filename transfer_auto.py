@@ -35,25 +35,23 @@ def put_file(pathfile):
 
     proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
 
-    log.info(f"""stdout: {proc.stdout}\n
-               stderr: {proc.stderr}""")
+    log.info(f"""stdout: {proc.stdout}\nstderr: {proc.stderr}\n""")
 
     proc.wait()
     log.info(f"Upload finished with returncode {proc.returncode}")
 
+'''
 class WatchEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         log.info(f'{event.src_path} Created')
-#        dirpath = os.path.dirname(event.src_path)
         put_file(event.src_path)
-
+        
     def on_modified(self, event):
         log.info(f'{event.src_path} Changed')
- #       dirpath = os.path.dirname(event.src_path)
         put_file(event.src_path)
-            
+'''         
 
-'''
+
 class UploadHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory:
@@ -70,7 +68,7 @@ class UploadHandler(FileSystemEventHandler):
         log.info(f"Starting upload: {pathfile}")
 
         sp.Popen(cmd, stdout=open('transfer.log', 'a'), stderr=subprocess.STDOUT)
-'''
+
 
 def initial_upload(watch_dir):
     proc = sp.Popen(['s3cmd','sync','--recursive','--no-check-md5', watch_dir, DEST_DIR],
@@ -82,7 +80,7 @@ def initial_upload(watch_dir):
     proc.wait()
 
 def watch(watch_dir):
-    event_handler = WatchEventHandler()
+    event_handler = UploadHandler()
     observer = PollingObserver()
     observer.schedule(
         event_handler,
