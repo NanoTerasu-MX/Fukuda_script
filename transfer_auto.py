@@ -66,7 +66,7 @@ class UploadHandler(FileSystemEventHandler):
         sp.Popen(cmd, stdout=open('transfer.log', 'a'), stderr=subprocess.STDOUT)
 
 def initial_upload(watch_dir):
-    proc = sp.Popen(['s3cmd','put','--recursive','--no-check-md5', watch_dir, DEST_DIR],
+    proc = sp.Popen(['s3cmd','sync','--recursive','--no-check-md5', watch_dir, DEST_DIR],
                              stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
 
     for line in proc.stdout:
