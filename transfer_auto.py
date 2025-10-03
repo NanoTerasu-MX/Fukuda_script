@@ -2,10 +2,9 @@ import os
 import subprocess as sp
 import logging as log
 import time
-import pynotify
-from pynotify import Event, EventType
 import sys 
-import asyncio
+from watchdog.observers import Observer
+from watchdog.events import LoggingEventHandler
 
 log.basicConfig(
     filename='transfer.log',
@@ -13,6 +12,7 @@ log.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
     )
+
 
 DEST_DIR = 's3://mxdata/mxdata/mxstaff/Data/'
 #S5CMD = '/data/mxstaff/s3command/bins/s5cmd'
@@ -41,48 +41,34 @@ def put_file(pathfile):
     proc.wait()
     log.info(f"Upload finished with returncode {proc.returncode}")
 
+class LoggingEventHandler2(LoggingEventHandler):
+    def on_created(self, event):
+        log.info(f'{event.src_path} Created')
+        put_file(event.src_path)
 
-class OpenHandler:
-    def handle_event(self, event: Event) -> None:
-        # just print out what is happening
-        print(f"{event.type.name} at {event.file_path}")
-
-    def can_handle_event_type(self, type: EventType) -> bool:
-        return EventType.OPEN & type != 0
-
-class CloseHandler:
-    def handle_event(self, event: Event) -> None:
-        # just print out what is happening
-        print(f"{event.type.name} at {event.file_path}")
-        put_file(str(event.file_path))
-
-    def can_handle_event_type(self, type: EventType) -> bool:
-        return EventType.CLOSE & type != 0
-
-async def stop_loop(stop_event: asyncio.Event):
-    await asyncio.sleep(10)
-    stop_event.set()
-
-async def watch_directory(watch_dir):
-    with pynotify.Notifier() as notifier:
-        stop_Event = asyncio.Event()
-
-        notifier.add_watch(watch_dir, OpenHandler(), CloseHandler())
-
-        notifier.modify_watch_event_type(watch_dir, EventType.CLOSE)
-
-        await asyncio.gather(
-                notifier.run(stop_event=stop_event),
-                stop_loop(stop_event))
-
+def watch(watch_dir):
+    event_handler = LoggingEventHandler2()
+    observer = Observer()
+    observer.schedule(
+        event_handler,
+        watch_dir,
+        recursive=True
+        )
+    observer.start()
+    try:
+        while True:
+            time.sleep(10)
+    except KeyboardInterrupt:
+        observer.stop()
+        observer.join()
 
 def main():
     if len(sys.argv) < 2:
         usage()
 
     watch_dir = sys.argv[1]
-
-    asyncio.run(watch_directory(watch_dir))
+    
+    watch(watch_dir)
 
 if __name__ == '__main__':
     main()
