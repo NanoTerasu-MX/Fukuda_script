@@ -12,15 +12,9 @@ log.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-
-destination_path = "s3://mxdata/mxdata"
-dataset_path_file = "/Users/nangolab.17/.dataset_paths_for_kamo_BL09U.txt"
-kamo_dataset_pathfile = "kamo_dataset_paths.txt"
-destination_path_on_aoba = "/mnt/lustre/S3/a01768/mxdata/mxdata"
-
 class AutoTransferAndProcess:
-    def __init__(self, destination_path_on_S3, destination_path_on_aoba, dataset_path_file, kamo_dataset_path_file):
-        self.destination_path_on_S3 = destination_path_on_S3
+    def __init__(self, destination_path_on_s3, destination_path_on_aoba, dataset_path_file, kamo_dataset_path_file):
+        self.destination_path_on_S3 = destination_path_on_s3
         self.destination_path_on_aoba = destination_path_on_aoba
         self.dataset_path_file = dataset_path_file
         self.kamo_dataset_path_file = kamo_dataset_path_file
@@ -74,7 +68,7 @@ class AutoTransferAndProcess:
             self.transfer_to_s3(transferred_file_path)
 
             # count the number of files on S3
-            cmd_ls = ["s3cmd", "ls", "-r", self.destination_path_on_S3]
+            cmd_ls = ["s3cmd", "ls", "-r", self.destination_path_on_s3]
             result = sp.run(cmd_ls, capture_output=True, text=True)
             count = result.stdout.count(".cbf")
 
@@ -108,7 +102,16 @@ class AutoTransferAndProcess:
     #--- write_kamo_dataset_file ---#
 
 def main():
-    auto = AutoTransferAndProcess()
+    #--- load config ---#
+    with open("transfer_auto_config.yaml") as fin:
+        cfg = yaml.safe_load(f)
+        
+    auto = AutoTransferAndProcess(
+        destination_path_on_s3 = cfg["destination_path_on_s3"],
+        destination_path_on_aoba = cfg["destination_path_on_aoba"]
+        dataset_path_file = cfg["dataset_path_file"],
+        kamo_dataset_pathfile = cfg["kamo_dataset_pathfile"]
+        )
     auto.sync_s3()
 
 if __name__ == '__main__':
