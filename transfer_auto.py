@@ -35,7 +35,11 @@ class AutoTransferAndProcess:
         line = lines[-1] # latest line
         item = line.split(",")
         transferred_file_path = item[0].strip()
+        transferred_file_path = transferred_file_path.removeprefix("/data")
         data_origin, data_total = item[1].strip(), item[2].strip()
+        
+        log.info(f"transferred file path: {transferred_file_path}")
+        log.info(f"Number of data: {data_total}")
 
         return transferred_file_path, data_total
         
@@ -82,8 +86,9 @@ class AutoTransferAndProcess:
     #--- transfer_and_wait ---#
 
     def transfer_to_s3(self, transferred_file_path):
+        destination_path_on_s3 = os.path
         cmd = ["s3cmd", "sync", "--recursive", "--no-check-md5",
-               transferred_file_path, self.destination_path_on_S3]
+               transferred_file_path, self.destination_path_on_s3]
         log.info(f"Running: {' '.join(cmd)}")
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
         stdout, _ = proc.communicate()
@@ -95,7 +100,7 @@ class AutoTransferAndProcess:
     def write_kamo_dataset_file(self):
         transferred_file_path, data_total = self.load_dataset_path_file()
         kamo_proc_path = os.path.join(self.destination_path_on_aoba, transferred_file_path)
-        with open(self.kamo_dataset_path_file, "a") as fout:
+        with open(self.kamo_dataset_pathfile, "a") as fout:
                 fout.write(f"{kamo_proc_path}\n")
         log.info(f"Wrote path to {self.kamo_dataset_path_file}: {kamo_proc_path}")
 
