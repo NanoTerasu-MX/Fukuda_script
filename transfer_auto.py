@@ -144,7 +144,7 @@ class AutoTransferAndProcess:
         if transferred_file_path.endswith(".h5"):
             transferred_file_path = transferred_file_path[:-3] + ".cbf"
 
-        kamo_proc_path = os.path.join(self.destination_path_on_aoba, transferred_file_path.lstrip())
+        kamo_proc_path = os.path.join(self.destination_path_on_aoba, transferred_file_path.lstrip("/"))
 
         output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
         
