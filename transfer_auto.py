@@ -113,10 +113,23 @@ class AutoTransferAndProcess:
     """
     def transfer_to_s3(self, transferred_file_path):
         #--- transfer to S3 ---#
-        dirname_transferred = "/data" + os.path.dirname(transferred_file_path)
+        # 転送するデータのパスの取得
+        data_dir = "/data" + transferred_file_path
+        # 親ディレクトリを取得
+        tmp_path = os.path.dirname(data_dir)
+        # /dataプレフィックスを削除
+        dest_subdir = tmp_path.replace("/data", "", 1) if tmp_path.startswith("/data") else tmp_path
+        # 転送対象のディレクトリ
+        dirname_transferred = tmp_path
+        
+        log.info(f"data_dir: {data_dir}")
+        log.info(f"tmp_path: {tmp_path}")
+        log.info(f"dest_subdir: {dest_subdir}")
         log.info(f"dirname_transferred: {dirname_transferred}")
+        # Ensure S3 destination path ends with /
+        s3_destination = self.destination_path_on_s3 if self.destination_path_on_s3.endswith("/") else self.destination_path_on_s3 + "/"
         cmd = ["s3cmd", "sync", "--recursive", "--no-check-md5",
-               dirname_transferred, self.destination_path_on_s3]
+               dirname_transferred, s3_destination]
         log.info(f"Running: {' '.join(cmd)}")
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
         stdout, _ = proc.communicate()
