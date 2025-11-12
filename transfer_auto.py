@@ -85,7 +85,7 @@ class AutoTransferAndProcess:
                 else:
                     log.info(f"Non-data directory: {dirname}. Only transferring.")
                     self.transfer_to_s3(transferred_file_path)
-                break
+                    break
                     
                 # Save processed file path
                 self.processed_files.add(transferred_file_path)
@@ -110,6 +110,7 @@ class AutoTransferAndProcess:
 
         # Ensure S3 destination path ends with /
         s3_destination = os.path.join(self.destination_path_on_s3, dest_subdir.lstrip("/"))
+        log.info(f"s3_destination: {s3_destination}")
         cmd = ["s3cmd", "sync", "--recursive", "--no-check-md5",
                dirname_transferred, s3_destination]
         log.info(f"Running: {' '.join(cmd)}")
