@@ -129,7 +129,7 @@ class AutoTransferAndProcess:
         
             try:
               with open(self.kamo_dataset_path_file, "a") as fout:
-                 fout.write(f"{output_path}\n")
+                fout.write(f"{output_path}\n")
                 log.info(f"Wrote path to {self.kamo_dataset_path_file}: {output_path}")
             except Exception as e:
                 log.error(f"Failed to write to kamo_dataset_path_file: {e}")
@@ -140,7 +140,7 @@ class AutoTransferAndProcess:
 def main():
     #--- load arguments ---#
     if len(sys.argv) < 3:
-        print("Usage: python script.py kamo_dataset_path_file=<path>, target_data=<YYMMDD>")
+        print("Usage: python script.py kamo_dataset_path_file=<path>, target_date=<YYMMDD>")
         sys.exit(1)
 
     kamo_dataset_path_file = None
@@ -165,7 +165,7 @@ def main():
         destination_path_on_aoba = cfg["destination_path_on_aoba"],
         dataset_path_file = cfg["dataset_path_file"],
         kamo_dataset_path_file=kamo_dataset_path_file,
-        target_data=target_date
+        target_date=target_date
     )
     auto.sync_s3()
 
