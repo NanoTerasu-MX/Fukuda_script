@@ -56,9 +56,9 @@ class AutoTransferAndProcess:
             dataset_info.append((transferred_file_path, data_origin, data_total))
 
         if not dataset_info:
-            log.info(f"No dataset found for date: {target_date}")
+            log.info(f"No dataset found for date: {self.target_date}")
         else:
-            log.info(f"Found {len(dataset_info)} datasets for date: {target_date}")
+            log.info(f"Found {len(dataset_info)} datasets for date: {self.target_date}")
 
         return dataset_info
         
