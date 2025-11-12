@@ -138,14 +138,18 @@ class AutoTransferAndProcess:
 
     #--- transfer_to_s3 ---#
 
-    def write_kamo_dataset_file(self, transferred_file_path=None):
-        if transferred_file_path is None:
-            transferred_file_path, _ = self.load_dataset_path_file()
-            if transferred_file_path is None:
-                log.error("No transferred file path available to write to kamo dataset file.")
-                return
-        
-        kamo_proc_path = os.path.join(self.destination_path_on_aoba, transferred_file_path)
+    def write_kamo_dataset_file(self):
+        try:
+            with open(self.dataset_path_file, "r") as fin:
+                lines = [line for line in fin if line.strip()]
+        except FileNotFoundError:
+            log.error(f"Dataset path file not found: {self.dataset_path_file}")
+            return
+        if lines.startswith("/data"):
+            lines = lines[len("/data"):]
+
+        kamo_proc_path = os.path.join(self.destination_path_on_aoba, lines)
+        if 
         try:
             with open(self.kamo_dataset_path_file, "a") as fout:
                 fout.write(f"{kamo_proc_path}\n")
