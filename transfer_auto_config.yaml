@@ -1,4 +1,4 @@
 destination_path_on_s3: "s3://mxdata/mxdata"
-dataset_path_file: "/Users/nangolab.17/.dataset_paths_for_kamo_BL09U.txt"
-kamo_dataset_pathfile: "kamo_dataset_paths.txt"
+dataset_path_file: "/data/mxstaff/.dataset_paths_for_kamo_BL09U.txt"
 destination_path_on_aoba: "/mnt/lustre/S3/a01768/mxdata/mxdata"
+
