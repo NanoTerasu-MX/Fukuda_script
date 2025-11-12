@@ -115,7 +115,7 @@ class AutoTransferAndProcess:
         #--- transfer to S3 ---#
         dirname_transferred = os.path.dirname(transferred_file_path)
         cmd = ["s3cmd", "sync", "--recursive", "--no-check-md5",
-               transferred_file_path, self.destination_path_on_s3]
+               dirname_transferred, self.destination_path_on_s3]
         log.info(f"Running: {' '.join(cmd)}")
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
         stdout, _ = proc.communicate()
