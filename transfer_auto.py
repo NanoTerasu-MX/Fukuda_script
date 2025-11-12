@@ -71,7 +71,7 @@ class AutoTransferAndProcess:
             if dirname.startswith("data"):
                 log.info(f"Detected dataset dir: {dirname}")
                 self.transfer_to_s3(transferred_file_path)
-                self.write_kamo_dataset_file(transferred_file_path)
+                self.write_kamo_dataset_file()
                 break
             else:
                 log.info(f"Non-data directory: {dirname}. Only transferring.")
