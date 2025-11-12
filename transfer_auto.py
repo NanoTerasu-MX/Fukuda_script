@@ -19,6 +19,7 @@ class AutoTransferAndProcess:
         self.dataset_path_file = dataset_path_file
         self.kamo_dataset_path_file = kamo_dataset_path_file
         self.target_date = target_date
+        self.processed_files = set()
     
     #--- __init__ ---#
 
@@ -72,17 +73,24 @@ class AutoTransferAndProcess:
                 time.sleep(30)
                 continue
 
-            for transferred_file_path, _, _ in dataset_list:
-                dirname = os.path.basename(os.path.dirname(transferred_file_path))
-                if dirname.startswith("data"):
-                    log.info(f"Detected dataset dir: {dirname}")
-                    self.transfer_to_s3(transferred_file_path)
-                    self.write_kamo_dataset_file()
-                    break
-                else:
-                    log.info(f"Non-data directory: {dirname}. Only transferring.")
-                    self.transfer_to_s3(transferred_file_path)
-                    break
+            for transferred_file_path, data_origin, data_total in dataset_list:
+                if transferred_file_path in self.processed_files:
+                    log.info(f"Already processed: {transferred_file_path}. Skipping.")
+                    continue
+
+                    dirname = os.path.basename(os.path.dirname(transferred_file_path))
+                    if dirname.startswith("data"):
+                        log.info(f"Detected dataset dir: {dirname}")
+                        self.transfer_to_s3(transferred_file_path)
+                        self.write_kamo_dataset_file(transferred_file_path, data_origin, data_total)
+                        break
+                    else:
+                        log.info(f"Non-data directory: {dirname}. Only transferring.")
+                        self.transfer_to_s3(transferred_file_path)
+                        break
+                    
+                    # Save processed file path
+                    self.processed_files.add(transferred_file_path)
 
     #--- sync_s3 ---#
     
@@ -114,25 +122,24 @@ class AutoTransferAndProcess:
 
     #--- transfer_to_s3 ---#
 
-    def write_kamo_dataset_file(self):
+    def write_kamo_dataset_file(self, transferred_file_path, data_origin, data_total):
         dataset_list = self.load_dataset_path_file()
         if dataset_list is None:
             log.error("No dataset info to write to kamo_dataset_path_file.")
             return
         
-        for transferred_file_path, data_origin, data_total in dataset_list:
-            if transferred_file_path.endswith(".h5"):
-                transferred_file_path = transferred_file_path[:-3] + ".cbf"
+        if transferred_file_path.endswith(".h5"):
+            transferred_file_path = transferred_file_path[:-3] + ".cbf"
         
-            kamo_proc_path = os.path.join(self.destination_path_on_aoba, transferred_file_path.lstrip("/"))
-            output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
+        kamo_proc_path = os.path.join(self.destination_path_on_aoba, transferred_file_path.lstrip("/"))
+        output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
         
-            try:
-              with open(self.kamo_dataset_path_file, "a") as fout:
+        try:
+            with open(self.kamo_dataset_path_file, "a") as fout:
                 fout.write(f"{output_path}\n")
                 log.info(f"Wrote path to {self.kamo_dataset_path_file}: {output_path}")
-            except Exception as e:
-                log.error(f"Failed to write to kamo_dataset_path_file: {e}")
+        except Exception as e:
+            log.error(f"Failed to write to kamo_dataset_path_file: {e}")
 
     #--- write_kamo_dataset_file ---#
 
