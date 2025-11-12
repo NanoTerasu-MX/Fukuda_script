@@ -108,6 +108,9 @@ class AutoTransferAndProcess:
 
         # Ensure S3 destination path ends with /
         s3_destination = os.path.join(self.destination_path_on_s3, dest_subdir.lstrip("/"))
+        if not s3_destination.endswith("/"):
+            s3_destination += "/"
+            
         log.info(f"s3_destination: {s3_destination}")
         cmd = ["s3cmd", "sync", "--recursive", "--no-check-md5",
                dirname_transferred, s3_destination]
