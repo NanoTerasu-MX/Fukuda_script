@@ -122,7 +122,7 @@ class AutoTransferAndProcess:
 
     #--- transfer_to_s3 ---#
 
-    def write_kamo_dataset_file(self):
+    def write_kamo_dataset_file(self, transferred_file_path=None):
         if transferred_file_path is None:
             transferred_file_path, _ = self.load_dataset_path_file()
             if transferred_file_path is None:
