@@ -139,9 +139,9 @@ class AutoTransferAndProcess:
     #--- transfer_to_s3 ---#
 
     def write_kamo_dataset_file(self):
-        transfetred_file_path, data_origin, data_total = self.load_dataset_path_file()
+        transferred_file_path, data_origin, data_total = self.load_dataset_path_file()
         
-        if transfetred_file_path.endswith(".h5"):
+        if transferred_file_path.endswith(".h5"):
             transferred_file_path = transferred_file_path[:-3] + ".cbf"
 
         kamo_proc_path = os.path.join(self.destination_path_on_aoba, transferred_file_path.lstrip())
