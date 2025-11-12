@@ -59,6 +59,7 @@ class AutoTransferAndProcess:
         if not dataset_info:
             log.info(f"No dataset found for date: {self.target_date}")
 
+        log.info(f"{dataset_info}")
         return dataset_info
         
     #--- load_dataset_path_file ---#
