@@ -76,19 +76,19 @@ class AutoTransferAndProcess:
                     log.info(f"Already processed: {transferred_file_path}. Skipping.")
                     continue
 
-                    dirname = os.path.basename(os.path.dirname(transferred_file_path))
-                    if dirname.startswith("data"):
-                        log.info(f"Detected dataset dir: {dirname}")
-                        self.transfer_to_s3(transferred_file_path)
-                        self.write_kamo_dataset_file(transferred_file_path, data_origin, data_total)
-                        break
-                    else:
-                        log.info(f"Non-data directory: {dirname}. Only transferring.")
-                        self.transfer_to_s3(transferred_file_path)
-                        break
+                dirname = os.path.basename(os.path.dirname(transferred_file_path))
+                if dirname.startswith("data"):
+                    log.info(f"Detected dataset dir: {dirname}")
+                    self.transfer_to_s3(transferred_file_path)
+                    self.write_kamo_dataset_file(transferred_file_path, data_origin, data_total)
+                    break
+                else:
+                    log.info(f"Non-data directory: {dirname}. Only transferring.")
+                    self.transfer_to_s3(transferred_file_path)
+                break
                     
-                    # Save processed file path
-                    self.processed_files.add(transferred_file_path)
+                # Save processed file path
+                self.processed_files.add(transferred_file_path)
 
     #--- sync_s3 ---#
     
