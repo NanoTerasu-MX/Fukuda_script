@@ -61,7 +61,7 @@ class AutoTransferAndProcess:
 
     def sync_s3(self):
         while True:
-            transferred_file_path, data_total = self.load_dataset_path_file()
+            transferred_file_path, _ = self.load_dataset_path_file()
             if transferred_file_path is None:
                log.info("No dataset found yet. Waiting...")
                time.sleep(30)
@@ -70,16 +70,16 @@ class AutoTransferAndProcess:
             dirname = os.path.basename(os.path.dirname(transferred_file_path))
             if dirname.startswith("data"):
                 log.info(f"Detected dataset dir: {dirname}")
-                self.transfer_and_wait(transferred_file_path, data_total)
+                self.transfer_to_s3(transferred_file_path)
                 self.write_kamo_dataset_file(transferred_file_path)
                 break
             else:
                 log.info(f"Non-data directory: {dirname}. Only transferring.")
-                self.transfer_and_wait(transferred_file_path, data_total)
+                self.transfer_to_s3(transferred_file_path)
                 break
 
     #--- sync_s3 ---#
-    
+    """
     def transfer_and_wait(self, transferred_file_path, data_total):
         #--- iterate transferring, and then the number of files on S3 is consistent with based directory ---#
         expected = None
@@ -110,7 +110,7 @@ class AutoTransferAndProcess:
             time.sleep(60)
 
     #--- transfer_and_wait ---#
-
+    """
     def transfer_to_s3(self, transferred_file_path):
         cmd = ["s3cmd", "sync", "--recursive", "--no-check-md5",
                transferred_file_path, self.destination_path_on_s3]
