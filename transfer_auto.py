@@ -118,7 +118,7 @@ class AutoTransferAndProcess:
         # 親ディレクトリを取得
         tmp_path = os.path.dirname(data_dir)
         # /dataプレフィックスを削除
-        dest_subdir = tmp_path.replace("/data", "", 1) if tmp_path.startswith("/data") else tmp_path
+        dest_subdir = os.path.dirname(tmp_path.replace("/data", "", 1) if tmp_path.startswith("/data") else tmp_path)
         # 転送対象のディレクトリ
         dirname_transferred = tmp_path
         
