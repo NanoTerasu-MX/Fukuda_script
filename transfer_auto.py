@@ -149,7 +149,6 @@ class AutoTransferAndProcess:
             lines = lines[len("/data"):]
 
         kamo_proc_path = os.path.join(self.destination_path_on_aoba, lines)
-        if 
         try:
             with open(self.kamo_dataset_path_file, "a") as fout:
                 fout.write(f"{kamo_proc_path}\n")
