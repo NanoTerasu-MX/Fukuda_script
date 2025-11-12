@@ -145,10 +145,12 @@ class AutoTransferAndProcess:
         except FileNotFoundError:
             log.error(f"Dataset path file not found: {self.dataset_path_file}")
             return
-        if lines.startswith("/data"):
-            lines = lines[len("/data"):]
+        
+        latest_line = lines[-1].strip()
+        if latest_line.startswith("/data"):
+            latest_line = latest_line[len("/data"):]
 
-        kamo_proc_path = os.path.join(self.destination_path_on_aoba, lines)
+        kamo_proc_path = os.path.join(self.destination_path_on_aoba, latest_line.lstrip())
         try:
             with open(self.kamo_dataset_path_file, "a") as fout:
                 fout.write(f"{kamo_proc_path}\n")
