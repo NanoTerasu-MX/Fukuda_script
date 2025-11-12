@@ -55,13 +55,13 @@ class AutoTransferAndProcess:
         log.info(f"transferred file path: {transferred_file_path}")
         log.info(f"Number of data: {data_total}")
 
-        return transferred_file_path, data_total
+        return transferred_file_path, data_origin, data_total
         
     #--- load_dataset_path_file ---#
 
     def sync_s3(self):
         while True:
-            transferred_file_path, _ = self.load_dataset_path_file()
+            transferred_file_path, _, _ = self.load_dataset_path_file()
             if transferred_file_path is None:
                log.info("No dataset found yet. Waiting...")
                time.sleep(30)
@@ -139,22 +139,19 @@ class AutoTransferAndProcess:
     #--- transfer_to_s3 ---#
 
     def write_kamo_dataset_file(self):
-        try:
-            with open(self.dataset_path_file, "r") as fin:
-                lines = [line for line in fin if line.strip()]
-        except FileNotFoundError:
-            log.error(f"Dataset path file not found: {self.dataset_path_file}")
-            return
+        transfetred_file_path, data_origin, data_total = self.load_dataset_path_file()
         
-        latest_line = lines[-1].strip()
-        if latest_line.startswith("/data"):
-            latest_line = latest_line[len("/data"):]
+        if transfetred_file_path.endswith(".h5"):
+            transferred_file_path = transferred_file_path[:-3] + ".cbf"
 
-        kamo_proc_path = os.path.join(self.destination_path_on_aoba, latest_line.lstrip())
+        kamo_proc_path = os.path.join(self.destination_path_on_aoba, transferred_file_path.lstrip())
+
+        output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
+        
         try:
             with open(self.kamo_dataset_path_file, "a") as fout:
-                fout.write(f"{kamo_proc_path}\n")
-            log.info(f"Wrote path to {self.kamo_dataset_path_file}: {kamo_proc_path}")
+                fout.write(f"{output_path}\n")
+            log.info(f"Wrote path to {self.kamo_dataset_path_file}: {output_path}")
         except Exception as e:
             log.error(f"Failed to write to kamo_dataset_path_file: {e}")
 
