@@ -1,99 +1,281 @@
+"""
+This script automates the transfer of diffraction data files to an S3 bucket and prepares a dataset path file for Kamo processing.
+It continuously monitors a specified dataset path file.
+"""
+
+# File: transfer_auto.py
+# Authors: Akiya Fukuda
+# Date: 2025-11-21
+# Description: Automated transfer of diffraction data to S3 and preparation of Kamo dataset path file.
+
+#%%
 import os
 import subprocess as sp
 import logging as log
 import time
 import sys 
 import yaml 
-
+import threading
+#%%
+#--- logging configuration ---#
 log.basicConfig(
     filename='transfer.log',
     level=log.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
     )
+#--- logging configuration ---#
 
 class AutoTransferAndProcess:
-    def __init__(self, destination_path_on_s3, destination_path_on_aoba, dataset_path_file, kamo_dataset_path_file, target_date):
-        self.destination_path_on_s3 = destination_path_on_s3
-        self.destination_path_on_aoba = destination_path_on_aoba
-        self.dataset_path_file = dataset_path_file
-        self.kamo_dataset_path_file = kamo_dataset_path_file
-        self.target_date = target_date
-        self.processed_files = set()
+    def __init__(self, 
+                 bss_dataset_path,
+                 destination_path_via_s3,
+                 destination_path_via_aoba):
+        
+        # bss_dataset_path: /system/data_transfer/monitor.txt
+        self.bss_dataset_path = bss_dataset_path
+        # destination_path_via_s3: s3://mxdata/mxdata/
+        self.destination_path_via_s3 = destination_path_via_s3
+        # destination_path_via_aoba: /mnt/lustre/S3/a01768/mxdata/mxdata
+        self.destination_path_via_aoba = destination_path_via_aoba
     
     #--- __init__ ---#
 
-    def load_dataset_path_file(self):
-        #--- load output path of diffraction data ---#
+    # updated path 2025-11-26 by Akiya Fukuda
+    def path(self):
+        #--- load diffraction data path via BSS output file ---#
+        # self.bss_dataset_path: /system/data_transfer/monitor.txt
         try:
-            with open(self.dataset_path_file, "r") as fin:
-                lines = [line.strip() for line in fin if line.strip()]
-        except FileNotFoundError:
-            log.error(f"Dataset path file not found: {self.dataset_path_file}")
-            return None, None
-        
-        if not lines:
-            log.info("Dataset path file is empty.")
-            return None, None
+            with open(self.bss_dataset_path, "r") as fin:
+                # output_path_by_bss:
+                # /data/mxstaff/.dataset_paths_for_kamo.txt
+                # or
+                # /data/<Beamtime ID>/Data/.dataset_paths_for_kamo.txt 
 
-        dataset_info = []
+                """
+                readlines()は読み込んだファイルのテキストを行ごとにリスト化する.
+                例:
+                <読み込むファイルの中身>
+                line1
+                line2
+                line3
 
-        for line in lines:
-            # loading target date line
-            if f"/{self.target_date}_" not in line:
-                continue
+                これをreadlines()で読み込むと
+                ['list1', 'list2', 'list3']
+                とリストが返ってくる.
+                したがって、最新のファイルパスを取得したい場合, リストの一番最後である[-1]を持ってくれば良い
+                """
 
-            item = [s.strip() for s in line.split(",")]
-            if len(item) < 3:
-                log.error(f"Invalid format in dataset path file: {line}")
-                continue
+                lines = fin.readlines()
+
+                if not lines:
+                    log.info(f"Dataset path file is empty: {self.bss_dataset_path}")
+                    return None
+
+                output_path_by_bss = lines[-1].strip()
+
+                if not output_path_by_bss:
+                    log.info(f"The last line of the dataset path file is empty: {self.bss_dataset_path}")
+                    return None
+
+                log.info(f"output dataset to {output_path_by_bss}")
+                return output_path_by_bss
             
-            # Remove leading /data if present from transferred_file_path
-            transferred_file_path = item[0].strip()
-            if transferred_file_path.startswith("/data"):
-                transferred_file_path = transferred_file_path[len("/data"):]
-
-            data_origin, data_total = item[1].strip(), item[2].strip()
-            dataset_info.append((transferred_file_path, data_origin, data_total))
-
-        if not dataset_info:
-            log.info(f"No dataset found for date: {self.target_date}")
-
-        return dataset_info
+        except FileNotFoundError:
+            log.error(f"Dataset path not found: {self.bss_dataset_path}")
+            return None
         
-    #--- load_dataset_path_file ---#
+    #--- path ---#
 
-    def sync_s3(self):
+    # updated identify_auto_or_visit 2025-11-21 by Akiya Fukuda
+    def identify_auto_or_visit(self, 
+                               output_path_by_bss: str):
+        #--- identify auto or visit mesurement ---#
+        """
+        output_path_by_bss by self.load_dataset_path_file() is identified as 
+        /data/mxstaff/.dataset_paths_for_kamo.txt (auto measurement)
+        or 
+        /data/<Beamline ID>/.dataset_paths_for_kamo.txt (visit measurement)
+        """
+
+        if "/data/mxstaff/" in output_path_by_bss:
+            log.info("Auto measurement detected. ---> Return auto")
+            return "auto"
+        else:
+            log.info("Visit measurement detected. ---> Return visit")
+            return "visit"
+
+    #--- identify_auto_or_visit ---#
+
+    # updated load_dataset_paths_for_kamo_file 2025-12-16 by Akiya Fukuda
+    def load_dataset_paths_for_kamo_file(self,
+                                         output_path_by_bss: str):
+        """
+        Reads the LAST LINE of a .dataset_paths_for_kamo.txt file 
+        and parses an entry of the form:
+        /some/path, 1, 123
+
+        Returns a dict like:
+        {"path": "/some/path", "total": 123}
+
+        Returns None on I/O error or parsing failure.
+        """
+        
+        try:
+            with open(output_path_by_bss, "r") as fin:
+                lines = fin.readlines()
+
+                if not lines:
+                    log.error(f"File is empty:{output_path_by_bss}")
+                    return None
+
+                latest_line = lines[-1].strip()
+
+                if not latest_line:
+                    log.error(f"The last line of the dataset path file is empty: {latest_line}")
+                    return None
+
+                try:
+                    path_str, data_origin_str, total_str = latest_line.split(",", 2)
+                except ValueError:
+                    log.warning(f"Could not parse the line. Incorrect format: '{latest_line}'")
+                    return None
+
+                dataset_path = path_str.strip()
+                data_origin = int(data_origin_str.strip())
+                total = int(total_str.strip())
+
+                if os.path.basename(dataset_path) in ".h5":
+                    dataset_path = dataset_path[:-3] + ".cbf"                
+
+                log.info(f"Successfully parsed: path='{dataset_path}', data_origin={data_origin}total={total}")
+                return {"path": dataset_path, "data_origin": data_origin, "total": total}            
+
+        except FileNotFoundError:
+            log.error(f"{output_path_by_bss} is not exist")
+            return None
+        
+        except Exception as e:
+            log.error(f"An unexpected error occurred: {e}")
+            return None
+
+    #--- load_dataset_paths_for_kamo_file ---#
+
+
+    # updated identify_data_or_other 2025-11-21 by Akiya Fukuda
+    def identify_data_or_other(self, dataset_path: str):
+        #--- identify data or other files ---#
+        # dataset_path by self.load_dataset_paths_for_kamo() is identified as 
+        # /data/.../data/
+        # or 
+        # /data/.../<other>/ (e.g., scan, check etc.)
+
+        # basename:
+        # data
+        # or
+        # <other> (e.g., scan, check etc.)
+
+        # パスがファイル名（例: *.cbf）を含む場合、ディレクトリ名を取得するためにos.path.dirnameを使用
+        if os.path.isfile(dataset_path) or "*" in dataset_path:
+            # 例: /data/.../data01/*.cbf -> /data/.../data01
+            path_to_check = os.path.dirname(dataset_path)
+        else:
+            # 例: /data/.../data/
+            path_to_check = dataset_path
+
+        basename = os.path.basename(path_to_check.rstrip("/"))
+
+        if "data" == basename:
+            log.info("{basename} detected.")
+            return "data"
+        else:
+            log.info("{basename} detected.")
+            return "other"
+    
+    #--- identify_data_or_other ---#
+
+    # updated proc 2025-11-21 by Akiya Fukuda
+    ''' main process '''
+    def proc(self):
         while True:
-            dataset_list = self.load_dataset_path_file()
-            if not dataset_list:
-                log.info("No dataset found yet. Waiting...")
+            '''
+            メインのループ処理
+            1. self.path()で/system/data_transfer/monitor.txtから.dataset_paths_for_kamo.txt(=output_path_by_bss)の最新のファイルパスを取得
+            2. self.identify_auto_or_visit()で, output_path_by_bssからauto測定かvisit測定かを判別
+               auto測定の場合: /data/mxstaff/.dataset_paths_for_kamo.txt
+                             データ転送とkamoによる処理を行う
+               visit測定の場合: /data/<Beamline ID>/.dataset_paths_for_kamo.txt
+                             データ転送のみを行う
+            3. self.load_dataset_paths_for_kamo_file()でkamoが処理すべき最新のデータセットパスと総フレーム数を取得
+               dataset_path: /data/.../Data/YYMMDD_BL09U/../data or /(other)
+            4. self.identify_data_or_other()でdataディレクトリかその他のディレクトリかを判別
+               もしdataディレクトリであれば、データ転送とKamo用のデータセットパスファイルへの書き込みを行う
+               もしその他のディレクトリであれば、データ転送のみを行う
+            5. self.transfer_to_s3()でS3へデータを転送
+            6. self.write_kamo_dataset_file()でKamo用のデータセットパスファイルに書き込み
+            7. 処理済みファイルパスを保存して重複処理を防止
+            8. 一定時間待機してループを繰り返す
+            以上の処理を無限ループで繰り返す
+            これにより、新しいデータセットが追加されるたびに自動的に処理が行われる
+            30秒ごとに最新のデータセットパスをチェックする
+            もし新しいデータセットが見つかれば、それをS3に転送し、Kamo用のデータセットパスファイルに追加する
+            これにより、データの転送とKamo処理の準備が自動化される
+            '''
+            output_path_by_bss = self.path()
+            if not output_path_by_bss:
+                log.info("No output_path_by_bss found yet. Waiting...")
                 time.sleep(30)
                 continue
 
-            for transferred_file_path, data_origin, data_total in dataset_list:
-                if transferred_file_path in self.processed_files:
-                    log.info(f"Already processed: {transferred_file_path}. Skipping.")
+            if "auto" == self.identify_auto_or_visit(output_path_by_bss):
+                log.info("Detected auto measurement.")
+
+                dataset_info = self.load_dataset_paths_for_kamo_file(output_path_by_bss)
+                if dataset_info is None:
+                    log.error("Failed to load dataset info.")
                     continue
 
-                dirname = os.path.basename(os.path.dirname(transferred_file_path))
-                if dirname.startswith("data"):
-                    log.info(f"Detected dataset dir: {dirname}")
-                    self.transfer_to_s3(transferred_file_path)
-                    self.write_kamo_dataset_file(transferred_file_path, data_origin, data_total)
-                else:
-                    log.info(f"Non-data directory: {dirname}. Only transferring.")
-                    self.transfer_to_s3(transferred_file_path)
-                       
-                # Save processed file path
-                self.processed_files.add(transferred_file_path)
+                dataset_path = dataset_info["path"]
+                total = dataset_info["total"]
 
-    #--- sync_s3 ---#
-    
-    def transfer_to_s3(self, transferred_file_path):
+                if "data" == self.identify_data_or_other(dataset_path):
+                    log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
+                    self.transfer_to_s3(dataset_path)
+                    self.write_kamo_dataset_file(dataset_path, data_origin=1, data_total=total)
+
+                elif "other" == self.identify_data_or_other(dataset_path):
+                    log.info("Non-data directory detected. Only transferring.")
+                    self.transfer_to_s3(dataset_path)
+
+            elif "visit" == self.identify_auto_or_visit(output_path_by_bss):
+                log.info("Detected visit measurement.")
+
+                dataset_info = self.load_dataset_paths_for_kamo_file(output_path_by_bss)
+                if dataset_info is None:
+                    log.error("Failed to load dataset info.")
+                    continue
+
+                dataset_path = dataset_info["path"]
+                total = dataset_info["total"]
+
+                if "data" == self.identify_data_or_other(dataset_path):
+                    log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
+                    self.transfer_to_s3(dataset_path)
+                
+                elif "other" == self.identify_data_or_other(dataset_path):
+                    log.info("Non-data directory detected. Only transferring.")
+                    self.transfer_to_s3(dataset_path)
+
+            # Save processed file path
+            # self.processed_files.add(transferred_file_path)
+
+    #--- proc ---#
+
+    #--- updated transfer_to_s3 2025-12-16 by Akiya Fukuda ---#
+    def transfer_to_s3(self, dataset_path: str):
         #--- transfer to S3 ---#
         # obtain full local data directory path
-        data_dir = os.path.join("/data", transferred_file_path.lstrip("/"))
+        data_dir = os.path.join("/data", dataset_path.lstrip("/"))
         # obtain parent directory
         tmp_path = os.path.dirname(data_dir)
         # remove /data prefix if present
@@ -107,7 +289,7 @@ class AutoTransferAndProcess:
         log.info(f"dirname_transferred: {dirname_transferred}")
 
         # Ensure S3 destination path ends with /
-        s3_destination = os.path.join(self.destination_path_on_s3, dest_subdir.lstrip("/"))
+        s3_destination = os.path.join(self.destination_path_via_s3, dest_subdir.lstrip("/"))
         if not s3_destination.endswith("/"):
             s3_destination += "/"
             
@@ -122,16 +304,12 @@ class AutoTransferAndProcess:
 
     #--- transfer_to_s3 ---#
 
-    def write_kamo_dataset_file(self, transferred_file_path, data_origin, data_total):
-        dataset_list = self.load_dataset_path_file()
-        if dataset_list is None:
+    def write_kamo_dataset_file(self, dataset_path: str, data_origin=1, data_total=None):
+        if dataset_path is None:
             log.error("No dataset info to write to kamo_dataset_path_file.")
             return
-        
-        if transferred_file_path.endswith(".h5"):
-            transferred_file_path = transferred_file_path[:-3] + ".cbf"
-        
-        kamo_proc_path = os.path.join(self.destination_path_on_aoba, transferred_file_path.lstrip("/"))
+
+        kamo_proc_path = os.path.join(self.destination_path_via_aoba, dataset_path.lstrip("/"))
         output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
         
         try:
@@ -143,38 +321,19 @@ class AutoTransferAndProcess:
 
     #--- write_kamo_dataset_file ---#
 
-
+#%%
 def main():
-    #--- load arguments ---#
-    if len(sys.argv) < 3:
-        print("Usage: python script.py kamo_dataset_path_file=<path>, target_date=<YYMMDD>")
-        sys.exit(1)
-
-    kamo_dataset_path_file = None
-    target_date = None
-    for arg in sys.argv[1:]:
-        if arg.startswith("kamo_dataset_path_file="):
-            kamo_dataset_path_file = arg.split("=", 1)[1]
-        elif arg.startswith("target_date="):
-            target_date = arg.split("=", 1)[1]
-
-    if kamo_dataset_path_file is None or target_date is None:
-        log.info("Error: kamo_dataset_path_file or target_date not specified.")
-        log.info("Usage: python script.py kamo_dataset_path_file=<path>, target_date=<YYMMDD>")
-        sys.exit(1)
-
+    
     #--- load config ---#
     with open("transfer_auto_config.yaml") as fin:
         cfg = yaml.safe_load(fin)
         
     auto = AutoTransferAndProcess(
-        destination_path_on_s3 = cfg["destination_path_on_s3"],
-        destination_path_on_aoba = cfg["destination_path_on_aoba"],
-        dataset_path_file = cfg["dataset_path_file"],
-        kamo_dataset_path_file=kamo_dataset_path_file,
-        target_date=target_date
+        bss_dataset_path=cfg["bss_dataset_path"],
+        destination_path_via_s3=cfg["destination_path_via_s3"],
+        destination_path_via_aoba=cfg["destination_path_via_aoba"]
     )
-    auto.sync_s3()
-
+    auto.proc()
+#%%
 if __name__ == '__main__':
     main()
