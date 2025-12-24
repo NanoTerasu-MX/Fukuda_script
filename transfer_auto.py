@@ -306,18 +306,18 @@ class AutoTransferAndProcess:
 
     def write_kamo_dataset_file(self, dataset_path: str, data_origin=1, data_total=None):
         if dataset_path is None:
-            log.error("No dataset info to write to kamo_dataset_path_file.")
+            log.error(f"No dataset info to write to {dataset_path}")
             return
 
         kamo_proc_path = os.path.join(self.destination_path_via_aoba, dataset_path.lstrip("/"))
         output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
         
         try:
-            with open(self.kamo_dataset_path_file, "a") as fout:
+            with open(kamo_proc_path, "a") as fout:
                 fout.write(f"{output_path}\n")
-                log.info(f"Wrote path to {self.kamo_dataset_path_file}: {output_path}")
+                log.info(f"Wrote path to {kamo_proc_path}: {output_path}")
         except Exception as e:
-            log.error(f"Failed to write to kamo_dataset_path_file: {e}")
+            log.error(f"Failed to write to {kamo_proc_path}: {e}")
 
     #--- write_kamo_dataset_file ---#
 
