@@ -32,6 +32,7 @@ class AutoTransferAndProcess:
                  destination_path_via_s3: str,
                  destination_path_via_aoba: str,
                  monitor_mode: str,
+                 dataset_mode: str,
                  processed_files: set = None):
 
         # bss_dataset_path: /system/data_transfer/monitor.txt
@@ -52,7 +53,8 @@ class AutoTransferAndProcess:
         # all: 既にファイルに書かれているパスも含めて全て処理
         # new_only: 新規に追加されたパス（最新行）のみ処理
         
-        self.mode = monitor_mode
+        self.monitor_mode = monitor_mode
+        self.dataset_mode = dataset_mode
 
         self.processed_files = set()  # To keep track of already processed file paths
 
@@ -89,9 +91,9 @@ class AutoTransferAndProcess:
                     log.info(f"Dataset path file is empty: {self.bss_dataset_path}")
                     return None
 
-                if self.mode == "new_only":
+                if self.monitor_mode == "new_only":
                     output_path_by_bss = lines[-1].strip()
-                elif self.mode == "all":
+                elif self.monitor_mode == "all":
                     output_path_by_bss = "".join(lines).strip()
 
                 if not output_path_by_bss:
@@ -149,7 +151,10 @@ class AutoTransferAndProcess:
                     log.error(f"File is empty:{output_path_by_bss}")
                     return None
 
-                latest_line = lines[-1].strip()
+                if self.dataset_mode == "new_only":
+                    latest_line = lines[-1].strip()
+                elif self.dataset_mode == "all":
+                    latest_line = "".join(lines).strip()
 
                 if not latest_line:
                     log.error(f"The last line of the dataset path file is empty: {latest_line}")
@@ -255,6 +260,7 @@ class AutoTransferAndProcess:
 
             dataset_path = dataset_info["path"]
             total = dataset_info["total"]
+
             if dataset_path in self.processed_files:
                 log.info(f"Dataset path already processed: {dataset_path}. Waiting...")
                 time.sleep(30)
