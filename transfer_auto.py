@@ -31,7 +31,8 @@ class AutoTransferAndProcess:
                  bss_dataset_path: str,
                  destination_path_via_s3: str,
                  destination_path_via_aoba: str,
-                 monitor_mode: str):
+                 monitor_mode: str,
+                 processed_files: set = None):
 
         # bss_dataset_path: /system/data_transfer/monitor.txt
         # データが測定されると更新されるBSS出力ファイルのパス
@@ -52,6 +53,8 @@ class AutoTransferAndProcess:
         # new_only: 新規に追加されたパス（最新行）のみ処理
         
         self.mode = monitor_mode
+
+        self.processed_files = set()  # To keep track of already processed file paths
 
     #--- __init__ ---#
 
@@ -284,7 +287,7 @@ class AutoTransferAndProcess:
                     self.transfer_to_s3(dataset_path)
 
             # Save processed file path
-            # self.processed_files.add(transferred_file_path)
+            self.processed_files.add(output_path_by_bss)
 
     #--- proc ---#
 
