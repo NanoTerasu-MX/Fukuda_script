@@ -357,6 +357,7 @@ def main():
         destination_path_via_s3=cfg["destination_path_via_s3"],
         destination_path_via_aoba=cfg["destination_path_via_aoba"],
         monitor_mode=cfg["monitor_mode"]
+        dataset_mode=cfg["monitor_mode"]
     )
     auto.proc()
 #%%
