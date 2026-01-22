@@ -247,6 +247,11 @@ class AutoTransferAndProcess:
                 time.sleep(30)
                 continue
 
+            if output_path_by_bss in self.processed_files:
+                log.info(f"Already processed: {output_path_by_bss}. Waiting for new data...")
+                time.sleep(30)
+                continue
+
             if "auto" == self.identify_auto_or_visit(output_path_by_bss):
                 log.info("Detected auto measurement.")
 
@@ -285,9 +290,10 @@ class AutoTransferAndProcess:
                 elif "other" == self.identify_data_or_other(dataset_path):
                     log.info("Non-data directory detected. Only transferring.")
                     self.transfer_to_s3(dataset_path)
-
+            
             # Save processed file path
             self.processed_files.add(output_path_by_bss)
+
 
     #--- proc ---#
 
