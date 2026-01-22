@@ -203,10 +203,10 @@ class AutoTransferAndProcess:
         basename = os.path.basename(path_to_check.rstrip("/"))
 
         if "data" == basename:
-            log.info("{basename} detected.")
+            log.info(f"{basename} detected.")
             return "data"
         else:
-            log.info("{basename} detected.")
+            log.info(f"{basename} detected.")
             return "other"
     
     #--- identify_data_or_other ---#
@@ -292,7 +292,7 @@ class AutoTransferAndProcess:
     def transfer_to_s3(self, dataset_path: str):
         #--- transfer to S3 ---#
         # obtain full local data directory path
-        data_dir = os.path.join("/data", dataset_path.lstrip("/"))
+        data_dir = dataset_path.rstrip("/")
         # obtain parent directory
         tmp_path = os.path.dirname(data_dir)
         # remove /data prefix if present
