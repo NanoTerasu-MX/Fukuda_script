@@ -247,21 +247,21 @@ class AutoTransferAndProcess:
                 time.sleep(30)
                 continue
 
+            dataset_info = self.load_dataset_paths_for_kamo_file(output_path_by_bss)
+            if dataset_info is None:
+                log.error("Failed to load dataset info.")
+                time.sleep(30)
+                continue
+
+            dataset_path = dataset_info["path"]
+            total = dataset_info["total"]
             if dataset_path in self.processed_files:
-                log.info(f"Already processed: {dataset_path}. Waiting for new data...")
+                log.info(f"Dataset path already processed: {dataset_path}. Waiting...")
                 time.sleep(30)
                 continue
 
             if "auto" == self.identify_auto_or_visit(output_path_by_bss):
                 log.info("Detected auto measurement.")
-
-                dataset_info = self.load_dataset_paths_for_kamo_file(output_path_by_bss)
-                if dataset_info is None:
-                    log.error("Failed to load dataset info.")
-                    continue
-
-                dataset_path = dataset_info["path"]
-                total = dataset_info["total"]
 
                 if "data" == self.identify_data_or_other(dataset_path):
                     log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
@@ -274,14 +274,6 @@ class AutoTransferAndProcess:
 
             elif "visit" == self.identify_auto_or_visit(output_path_by_bss):
                 log.info("Detected visit measurement.")
-
-                dataset_info = self.load_dataset_paths_for_kamo_file(output_path_by_bss)
-                if dataset_info is None:
-                    log.error("Failed to load dataset info.")
-                    continue
-
-                dataset_path = dataset_info["path"]
-                total = dataset_info["total"]
 
                 if "data" == self.identify_data_or_other(dataset_path):
                     log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
