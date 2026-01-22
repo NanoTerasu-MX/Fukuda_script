@@ -247,8 +247,8 @@ class AutoTransferAndProcess:
                 time.sleep(30)
                 continue
 
-            if output_path_by_bss in self.processed_files:
-                log.info(f"Already processed: {output_path_by_bss}. Waiting for new data...")
+            if dataset_path in self.processed_files:
+                log.info(f"Already processed: {dataset_path}. Waiting for new data...")
                 time.sleep(30)
                 continue
 
@@ -292,7 +292,7 @@ class AutoTransferAndProcess:
                     self.transfer_to_s3(dataset_path)
             
             # Save processed file path
-            self.processed_files.add(output_path_by_bss)
+            self.processed_files.add(dataset_path)
 
 
     #--- proc ---#
