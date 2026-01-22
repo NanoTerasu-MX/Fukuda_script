@@ -28,17 +28,31 @@ log.basicConfig(
 
 class AutoTransferAndProcess:
     def __init__(self, 
-                 bss_dataset_path,
-                 destination_path_via_s3,
-                 destination_path_via_aoba):
-        
+                 bss_dataset_path: str,
+                 destination_path_via_s3: str,
+                 destination_path_via_aoba: str,
+                 monitor_mode: str):
+
         # bss_dataset_path: /system/data_transfer/monitor.txt
+        # データが測定されると更新されるBSS出力ファイルのパス
+        # .dataset_paths_for_kamo.txtの最新のファイルパスが記載されている
         self.bss_dataset_path = bss_dataset_path
+        
         # destination_path_via_s3: s3://mxdata/mxdata/
+        # s3コマンドを使用してデータを転送する先のS3バケットのパス
         self.destination_path_via_s3 = destination_path_via_s3
+        
         # destination_path_via_aoba: /mnt/lustre/S3/a01768/mxdata/mxdata
+        # Kamoが参照するデータセットパスファイルを書き込む先のローカルディレクトリのパス
         self.destination_path_via_aoba = destination_path_via_aoba
-    
+
+        # monitoring mode: all or new_only
+        # You can choose monitoring mode: all or new_only
+        # all: 既にファイルに書かれているパスも含めて全て処理
+        # new_only: 新規に追加されたパス（最新行）のみ処理
+        
+        self.mode = monitor_mode
+
     #--- __init__ ---#
 
     # updated path 2025-11-26 by Akiya Fukuda
@@ -72,7 +86,10 @@ class AutoTransferAndProcess:
                     log.info(f"Dataset path file is empty: {self.bss_dataset_path}")
                     return None
 
-                output_path_by_bss = lines[-1].strip()
+                if self.mode == "new_only":
+                    output_path_by_bss = lines[-1].strip()
+                elif self.mode == "all":
+                    output_path_by_bss = "".join(lines).strip()
 
                 if not output_path_by_bss:
                     log.info(f"The last line of the dataset path file is empty: {self.bss_dataset_path}")
@@ -304,7 +321,7 @@ class AutoTransferAndProcess:
 
     #--- transfer_to_s3 ---#
 
-    def write_kamo_dataset_file(self, dataset_path: str, data_origin=1, data_total=None):
+    def write_kamo_dataset_file(self, dataset_path: str, data_origin: int = 1, data_total: int = None):
         if dataset_path is None:
             log.error(f"No dataset info to write to {dataset_path}")
             return
@@ -331,7 +348,8 @@ def main():
     auto = AutoTransferAndProcess(
         bss_dataset_path=cfg["bss_dataset_path"],
         destination_path_via_s3=cfg["destination_path_via_s3"],
-        destination_path_via_aoba=cfg["destination_path_via_aoba"]
+        destination_path_via_aoba=cfg["destination_path_via_aoba"],
+        monitor_mode=cfg["monitor_mode"]
     )
     auto.proc()
 #%%
