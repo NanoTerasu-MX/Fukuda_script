@@ -373,11 +373,8 @@ class AutoTransferAndProcess:
 
         try:
             with open(write_kamo_proc_path, "a") as fout:
-                if output_path not in open(write_kamo_proc_path).read():
-                    fout.write(f"{output_path}\n")
-                    log.info(f"Wrote path to {write_kamo_proc_path}: {output_path}")
-                else:
-                    log.info(f"Path already exists in {kamo_proc_path}: {output_path}")
+                fout.write(f"{output_path}\n")
+                log.info(f"Wrote path to {write_kamo_proc_path}: {output_path}")
         except ValueError as e:
             log.error(f"Failed to write to {write_kamo_proc_path}: {e}")
 
