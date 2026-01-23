@@ -357,23 +357,29 @@ class AutoTransferAndProcess:
         p = Path(dataset_path)
         base_parent = p.parents[2]
         dest_subdir = base_parent.relative_to("/data")
-        kamo_proc_path = os.path.join(self.destination_path_via_aoba, dest_subdir, "dataset_paths_for_kamo.txt")
+        write_kamo_proc_path = os.path.join(self.destination_path_via_aoba, dest_subdir, "dataset_paths_for_kamo.txt")
+
+        proc_dir = p.parents[1]
+        kamo_proc_path = os.path.join(proc_dir, ".dataset_paths_for_kamo.txt")
         output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
 
         log.info(f"dataset_path: {dataset_path}")
         log.info(f"base_parent: {base_parent}")
         log.info(f"dest_subdir: {dest_subdir}")
+        log.info(f"write_kamo_proc_path: {write_kamo_proc_path}")
+
         log.info(f"kamo_proc_path: {kamo_proc_path}")
+        log.info(f"output_path to write: {output_path}")
 
         try:
-            with open(kamo_proc_path, "a") as fout:
-                if output_path not in open(kamo_proc_path).read():
+            with open(write_kamo_proc_path, "a") as fout:
+                if output_path not in open(write_kamo_proc_path).read():
                     fout.write(f"{output_path}\n")
-                    log.info(f"Wrote path to {kamo_proc_path}: {output_path}")
+                    log.info(f"Wrote path to {write_kamo_proc_path}: {output_path}")
                 else:
                     log.info(f"Path already exists in {kamo_proc_path}: {output_path}")
         except ValueError as e:
-            log.error(f"Failed to write to {kamo_proc_path}: {e}")
+            log.error(f"Failed to write to {write_kamo_proc_path}: {e}")
 
     #--- write_kamo_dataset_file ---#
 
