@@ -356,13 +356,15 @@ class AutoTransferAndProcess:
         data_dir = dataset_path.rstrip("/data").rstrip("/")
         tmp_path = os.path.dirname(data_dir).rstrip("/")
         tmp_path2 = tmp_path.strip(os.path.basename(tmp_path).rstrip("/")).rstrip("/")
-        dest_subdir = tmp_path2.strip(os.path.basename(tmp_path2).rstrip("/")).rstrip("/")
+        temp_path3 = tmp_path2.strip(os.path.basename(tmp_path2).rstrip("/")).rstrip("/")
+        dest_subdir = temp_path3.replace("/data", "", 1) if temp_path3.startswith("/data") else temp_path3
         kamo_proc_path = os.path.join(self.destination_path_via_aoba, dest_subdir.lstrip("/"), "dataset_paths_for_kamo.txt")
         output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
 
         log.info(f"data_dir: {data_dir}")
         log.info(f"tmp_path: {tmp_path}")
         log.info(f"tmp_path2: {tmp_path2}")
+        log.info(f"temp_path3: {temp_path3}")
         log.info(f"dest_subdir: {dest_subdir}")
         log.info(f"kamo_proc_path: {kamo_proc_path}")
 
