@@ -353,7 +353,7 @@ class AutoTransferAndProcess:
             log.error(f"No dataset info to write to {dataset_path}")
             return
 
-        data_dir = dataset_path.rstrip("/")
+        data_dir = dataset_path.rstrip("/data").rstrip("/")
         tmp_path = os.path.dirname(data_dir).rstrip("/")
         tmp_path2 = tmp_path.strip(os.path.basename(tmp_path).rstrip("/")).rstrip("/")
         dest_subdir = tmp_path2.strip(os.path.basename(tmp_path2).rstrip("/")).rstrip("/")
