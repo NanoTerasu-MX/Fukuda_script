@@ -286,7 +286,9 @@ class AutoTransferAndProcess:
 
                         if "data" == self.identify_data_or_other(dataset_path):
                             log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
+                            log.info("Starting transfer to S3 for auto measurement data directory.")
                             self.transfer_to_s3(dataset_path)
+                            log.info("Preparing Kamo dataset file.")
                             self.write_kamo_dataset_file(dataset_path, data_origin=1, data_total=total)
                         elif "other" == self.identify_data_or_other(dataset_path):
                             log.info("Non-data directory detected. Only transferring.")
@@ -297,8 +299,9 @@ class AutoTransferAndProcess:
 
                         if "data" == self.identify_data_or_other(dataset_path):
                             log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
+                            log.info("Starting transfer to S3 for visit measurement data directory.")
                             self.transfer_to_s3(dataset_path)
-                            self.write_kamo_dataset_file(dataset_path, data_origin=1, data_total=total)
+                            #self.write_kamo_dataset_file(dataset_path, data_origin=1, data_total=total)
                         elif "other" == self.identify_data_or_other(dataset_path):
                             log.info("Non-data directory detected. Only transferring.")
                             self.transfer_to_s3(dataset_path)
@@ -355,7 +358,12 @@ class AutoTransferAndProcess:
         dest_subdir = tmp_path.strip(os.path.basename(tmp_path).rstrip("/"))
         kamo_proc_path = os.path.join(self.destination_path_via_aoba, dest_subdir.lstrip("/"), "dataset_paths_for_kamo.txt")
         output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
-        
+
+        log.info(f"data_dir: {data_dir}")
+        log.info(f"tmp_path: {tmp_path}")
+        log.info(f"dest_subdir: {dest_subdir}")
+        log.info(f"kamo_proc_path: {kamo_proc_path}")
+
         try:
             with open(kamo_proc_path, "a") as fout:
                 fout.write(f"{output_path}\n")
