@@ -351,7 +351,7 @@ class AutoTransferAndProcess:
             return
 
         basename_stripped_path = dataset_path.strip(os.path.basename(dataset_path).rstrip("/"))
-        dirname_stripped_path = basename_stripped_path.strip(os.path.dirname(dataset_path).rstrip("/"))
+        dirname_stripped_path = basename_stripped_path.strip(os.path.basename(basename_stripped_path).rstrip("/"))
         kamo_proc_path = os.path.join(self.destination_path_via_aoba, dirname_stripped_path, "dataset_paths_for_kamo.txt")
         output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
         
