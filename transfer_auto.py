@@ -350,9 +350,9 @@ class AutoTransferAndProcess:
             log.error(f"No dataset info to write to {dataset_path}")
             return
 
-        basename_stripped_path = dataset_path.strip(os.path.basename(dataset_path).rstrip("/"))
-        dirname_stripped_path = basename_stripped_path.strip(os.path.basename(basename_stripped_path).rstrip("/"))
-        kamo_proc_path = os.path.join(self.destination_path_via_aoba, dirname_stripped_path, "dataset_paths_for_kamo.txt")
+        tmp_path = os.path.dirname(data_dir)
+        dest_subdir = os.path.dirname(tmp_path.replace("/data", "", 1) if tmp_path.startswith("/data") else tmp_path)
+        kamo_proc_path = os.path.join(self.destination_path_via_aoba, dest_subdir, "dataset_paths_for_kamo.txt")
         output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
         
         try:
