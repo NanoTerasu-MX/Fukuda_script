@@ -371,7 +371,7 @@ class AutoTransferAndProcess:
                     log.info(f"Wrote path to {kamo_proc_path}: {output_path}")
                 else:
                     log.info(f"Path already exists in {kamo_proc_path}: {output_path}")
-        except Exception as e:
+        except ValueError as e:
             log.error(f"Failed to write to {kamo_proc_path}: {e}")
 
     #--- write_kamo_dataset_file ---#
