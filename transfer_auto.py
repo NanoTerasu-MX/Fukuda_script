@@ -27,36 +27,40 @@ log.basicConfig(
 #--- logging configuration ---#
 
 class AutoTransferAndProcess:
-    def __init__(self, 
-                 bss_dataset_path: str,
-                 destination_path_via_s3: str,
-                 destination_path_via_aoba: str,
-                 monitor_mode: str,
-                 dataset_mode: str,
-                 processed_files: set = None):
+    def __init__(self, cfg: dict)
 
         # bss_dataset_path: /system/data_transfer/monitor.txt
         # データが測定されると更新されるBSS出力ファイルのパス
         # .dataset_paths_for_kamo.txtの最新のファイルパスが記載されている
-        self.bss_dataset_path = bss_dataset_path
+        self.bss_dataset_path = cfg["bss_dataset_path"]
         
         # destination_path_via_s3: s3://mxdata/mxdata/
         # s3コマンドを使用してデータを転送する先のS3バケットのパス
-        self.destination_path_via_s3 = destination_path_via_s3
+        self.destination_path_via_s3 = cfg["destination_path_via_s3"]
         
         # destination_path_via_aoba: /mnt/lustre/S3/a01768/mxdata/mxdata
         # Kamoが参照するデータセットパスファイルを書き込む先のローカルディレクトリのパス
-        self.destination_path_via_aoba = destination_path_via_aoba
-
+        self.destination_path_via_aoba = cfg["destination_path_via_aoba"]
+    
         # monitoring mode: all or new_only
         # You can choose monitoring mode: all or new_only
         # all: 既にファイルに書かれているパスも含めて全て処理
         # new_only: 新規に追加されたパス（最新行）のみ処理
-        
-        self.monitor_mode = monitor_mode
-        self.dataset_mode = dataset_mode
+        self.monitor_mode = cfg["monitor_mode"]
+    
+        # dataset mode: all or new_only
+        # You can choose dataset mode: all or new_only
+        # all: 既にファイルに書かれているパスも含めて全て処理
+        # new_only: 新規に追加されたパス（最新行）のみ処理
+        self.dataset_mode = cfg["dataset_mode"]
 
-        self.processed_files = set()  # To keep track of already processed file paths
+        # wait time between checks (in seconds)
+        # チェック間の待機時間（秒単位）
+        self.wait_time = cfg["wait_time"]
+
+        # To keep track of already processed file paths
+        # 既に処理済みのファイルパスを追跡するためのセット
+        self.processed_files = set()
 
     #--- __init__ ---#
 
@@ -251,13 +255,13 @@ class AutoTransferAndProcess:
             output_path_by_bss = self.path()
             if not output_path_by_bss:
                 log.info("No output_path_by_bss found yet. Waiting...")
-                time.sleep(30)
+                time.sleep(self.wait_time)
                 continue
 
             dataset_info = self.load_dataset_paths_for_kamo_file(output_path_by_bss)
             if dataset_info is None:
                 log.error("Failed to load dataset info.")
-                time.sleep(30)
+                time.sleep(self.wait_time)
                 continue
 
             # Obtain the index of the latest line
@@ -303,7 +307,7 @@ class AutoTransferAndProcess:
                     self.processed_files.add(info["path"])
 
             log.info("Sync cycle finished. Waiting 30s...")
-            time.sleep(30)
+            time.sleep(self.wait_time)
 
     #--- proc ---#
 
@@ -364,13 +368,7 @@ def main():
     with open("transfer_auto_config.yaml") as fin:
         cfg = yaml.safe_load(fin)
         
-    auto = AutoTransferAndProcess(
-        bss_dataset_path=cfg["bss_dataset_path"],
-        destination_path_via_s3=cfg["destination_path_via_s3"],
-        destination_path_via_aoba=cfg["destination_path_via_aoba"],
-        monitor_mode=cfg["monitor_mode"],
-        dataset_mode=cfg["dataset_mode"]
-    )
+    auto = AutoTransferAndProcess(cfg=cfg)
     auto.proc()
 #%%
 if __name__ == '__main__':
