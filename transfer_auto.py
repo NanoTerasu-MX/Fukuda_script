@@ -215,7 +215,7 @@ class AutoTransferAndProcess:
 
         basename = os.path.basename(path_to_check.rstrip("/"))
 
-        if "data" == basename:
+        if "data" in basename:
             log.info(f"{basename} detected.")
             return "data"
         else:
