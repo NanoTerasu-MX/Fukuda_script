@@ -372,7 +372,7 @@ class AutoTransferAndProcess:
         log.info(f"output_path to write: {output_path}")
 
         try:
-            with open(write_kamo_proc_path, "a") as fout:
+            with open(write_kamo_proc_path, "a+") as fout:
                 fout.write(f"{output_path}\n")
                 log.info(f"Wrote path to {write_kamo_proc_path}: {output_path}")
         except ValueError as e:
