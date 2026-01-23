@@ -271,6 +271,7 @@ class AutoTransferAndProcess:
             # 各要素に対してインデックス（番号）を付与する
             for i, info in enumerate(dataset_info):
                 dataset_path = info["path"]
+                total = info["total"]
 
                 if i < last_index and dataset_path in self.processed_files:
                     log.info(f"Dataset path already processed: {dataset_path}. Skipping...")
