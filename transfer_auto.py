@@ -361,6 +361,7 @@ class AutoTransferAndProcess:
         output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
 
         log.info(f"dataset_path: {dataset_path}")
+        log.info(f"base_parent: {base_parent}")
         log.info(f"dest_subdir: {dest_subdir}")
         log.info(f"kamo_proc_path: {kamo_proc_path}")
 
