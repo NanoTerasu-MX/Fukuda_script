@@ -145,40 +145,41 @@ class AutoTransferAndProcess:
         
         try:
             with open(output_path_by_bss, "r") as fin:
-                lines = fin.readlines()
+                #lines = fin.readlines()
+                lines = [l.strip() for l in fin if l.strip()]
 
                 if not lines:
                     log.error(f"File is empty:{output_path_by_bss}")
+                    return []
+
+                target_lines = lines if self.dataset_mode == "all" else [lines[-1]]
+
+                if not target_lines:
+                    log.error(f"The last line of the dataset path file is empty: {target_lines}")
                     return None
 
-                if self.dataset_mode == "new_only":
-                    latest_line = lines[-1].strip()
-                elif self.dataset_mode == "all":
-                    latest_line = "".join(lines).strip()
+                parsed_results = []
+                for line in target_lines:
+                    try:
+                        path_str, data_origin_str, total_str = line.split(",", 2)
+                        dataset_path = path_str.strip()
+                        if dataset_path.endswith(".h5"):
+                            dataset_path = dataset_path[:-3] + ".cbf"
 
-                if not latest_line:
-                    log.error(f"The last line of the dataset path file is empty: {latest_line}")
-                    return None
+                        parsed_results.append({
+                            "path": dataset_path,
+                            "data_origin": int(data_origin_str.strip()),
+                            "total": int(total_str.strip())
+                        })
+                    except ValueError:
+                        log.warning(f"Skipping invalid line: {line}")
+                        continue
 
-                try:
-                    path_str, data_origin_str, total_str = latest_line.split(",", 2)
-                except ValueError:
-                    log.warning(f"Could not parse the line. Incorrect format: '{latest_line}'")
-                    return None
-
-                dataset_path = path_str.strip()
-                data_origin = int(data_origin_str.strip())
-                total = int(total_str.strip())
-
-                if os.path.basename(dataset_path) in ".h5":
-                    dataset_path = dataset_path[:-3] + ".cbf"                
-
-                log.info(f"Successfully parsed: path='{dataset_path}', data_origin={data_origin}total={total}")
-                return {"path": dataset_path, "data_origin": data_origin, "total": total}            
+                return parsed_results               
 
         except FileNotFoundError:
             log.error(f"{output_path_by_bss} is not exist")
-            return None
+            return []
         
         except Exception as e:
             log.error(f"An unexpected error occurred: {e}")
@@ -220,6 +221,7 @@ class AutoTransferAndProcess:
     #--- identify_data_or_other ---#
 
     # updated proc 2025-11-21 by Akiya Fukuda
+    # updated proc 2026-01-23 by Akiya Fukuda
     ''' main process '''
     def proc(self):
         while True:
@@ -258,40 +260,50 @@ class AutoTransferAndProcess:
                 time.sleep(30)
                 continue
 
-            dataset_path = dataset_info["path"]
-            total = dataset_info["total"]
+            # Obtain the index of the latest line
+            last_index = len(dataset_info) - 1
 
-            if dataset_path in self.processed_files:
-                log.info(f"Dataset path already processed: {dataset_path}. Waiting...")
-                time.sleep(30)
-                continue
+            # enumerate関数は、リストやタプルなどのイテラブルなオブジェクトをループ処理する際に
+            # 各要素に対してインデックス（番号）を付与する
+            for i, info in enumerate(dataset_info):
+                dataset_path = info["path"]
 
-            if "auto" == self.identify_auto_or_visit(output_path_by_bss):
-                log.info("Detected auto measurement.")
+                if i < last_index and dataset_path in self.processed_files:
+                    log.info(f"Dataset path already processed: {dataset_path}. Skipping...")
+                    continue
+                else:
+                    log.info(f"Syncing dataset: {dataset_path} (Latest: {i == last_index})")
 
-                if "data" == self.identify_data_or_other(dataset_path):
-                    log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
-                    self.transfer_to_s3(dataset_path)
-                    self.write_kamo_dataset_file(dataset_path, data_origin=1, data_total=total)
+                if dataset_path not in self.processed_files:
+                    log.info(f"Processing new dataset path: {dataset_path}")
+                    if "auto" == self.identify_auto_or_visit(output_path_by_bss):
+                        log.info("Detected auto measurement.")
 
-                elif "other" == self.identify_data_or_other(dataset_path):
-                    log.info("Non-data directory detected. Only transferring.")
-                    self.transfer_to_s3(dataset_path)
+                        if "data" == self.identify_data_or_other(dataset_path):
+                            log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
+                            self.transfer_to_s3(dataset_path)
+                            self.write_kamo_dataset_file(dataset_path, data_origin=1, data_total=total)
+                        elif "other" == self.identify_data_or_other(dataset_path):
+                            log.info("Non-data directory detected. Only transferring.")
+                            self.transfer_to_s3(dataset_path)
 
-            elif "visit" == self.identify_auto_or_visit(output_path_by_bss):
-                log.info("Detected visit measurement.")
+                    elif "visit" == self.identify_auto_or_visit(output_path_by_bss):
+                        log.info("Detected visit measurement.")
 
-                if "data" == self.identify_data_or_other(dataset_path):
-                    log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
-                    self.transfer_to_s3(dataset_path)
-                
-                elif "other" == self.identify_data_or_other(dataset_path):
-                    log.info("Non-data directory detected. Only transferring.")
-                    self.transfer_to_s3(dataset_path)
+                        if "data" == self.identify_data_or_other(dataset_path):
+                            log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
+                            self.transfer_to_s3(dataset_path)
+                            self.write_kamo_dataset_file(dataset_path, data_origin=1, data_total=total)
+                        elif "other" == self.identify_data_or_other(dataset_path):
+                            log.info("Non-data directory detected. Only transferring.")
+                            self.transfer_to_s3(dataset_path)
             
-            # Save processed file path
-            self.processed_files.add(dataset_path)
+            if len(dataset_info) > 1:
+                for info in dataset_info[:-1]:
+                    self.processed_files.add(info["path"])
 
+            log.info("Sync cycle finished. Waiting 30s...")
+            time.sleep(30)
 
     #--- proc ---#
 
