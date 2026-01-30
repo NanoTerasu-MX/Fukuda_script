@@ -372,9 +372,14 @@ class AutoTransferAndProcess:
         log.info(f"output_path to write: {output_path}")
 
         try:
-            with open(write_kamo_proc_path, "a+") as fout:
-                fout.write(f"{output_path}\n")
-                log.info(f"Wrote path to {write_kamo_proc_path}: {output_path}")
+            if not os.path.isfile(write_kamo_proc_path):
+                with open(write_kamo_proc_path, "w") as fout:
+                    fout.write(f"{output_path}\n")
+                    log.info(f"Wrote path to {write_kamo_proc_path}: {output_path}")
+            else:
+                with open(write_kamo_proc_path, "a") as fout:
+                    fout.write(f"{output_path}\n")
+                    log.info(f"Appended path to {write_kamo_proc_path}: {output_path}")
         except ValueError as e:
             log.error(f"Failed to write to {write_kamo_proc_path}: {e}")
 
