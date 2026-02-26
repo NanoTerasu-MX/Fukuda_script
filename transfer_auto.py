@@ -376,7 +376,7 @@ class AutoTransferAndProcess:
                 log.info(f"Output from transfer process:\n{stdout}")
             
             if proc.returncode == 0:
-                log.info(f"Upload finished successfully with {num_threads} threads.")
+                log.info(f"Upload finished successfully with {self.num_threads} threads.")
             else:
                 log.error(f"Upload failed with returncode {proc.returncode}")
             
