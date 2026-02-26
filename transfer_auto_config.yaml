@@ -2,3 +2,6 @@ bss_dataset_path: "./monitor.txt"
 destination_path_via_s3: "s3://mxdata/mxdata/"
 destination_path_via_aoba: "/mnt/lustre/S3/a01768/mxdata/mxdata"
 monitor_mode: "new_only"
+dataset_mode: "new_only"
+wait_time: 10
+num_threads: 4

@@ -59,6 +59,10 @@ class AutoTransferAndProcess:
         # チェック間の待機時間（秒単位）
         self.wait_time = cfg["wait_time"]
 
+        # number of threads for parallel transfer
+        # 並列転送のスレッド数
+        self.num_threads = cfg["num_threads"]
+
         # To keep track of already processed file paths
         # 既に処理済みのファイルパスを追跡するためのセット
         self.processed_files = set()
@@ -317,6 +321,7 @@ class AutoTransferAndProcess:
     #--- proc ---#
 
     #--- updated transfer_to_s3 2025-12-16 by Akiya Fukuda ---#
+    #--- updated transfer_to_s3 2026-02-26 by Akiya Fukuda ---#
     def transfer_to_s3(self, dataset_path: str):
         #--- transfer to S3 ---#
         # obtain full local data directory path
@@ -337,15 +342,51 @@ class AutoTransferAndProcess:
         s3_destination = os.path.join(self.destination_path_via_s3, dest_subdir.lstrip("/"))
         if not s3_destination.endswith("/"):
             s3_destination += "/"
-            
-        log.info(f"s3_destination: {s3_destination}")
+
+        log.info(f"Target for transfer: dirname_transferred-{dirname_transferred} -> s3_destination-{s3_destination}")    
+        
+        '''
         cmd = ["s3cmd", "sync", "--recursive", "--no-check-md5",
                dirname_transferred, s3_destination]
-        log.info(f"Running: {' '.join(cmd)}")
+        '''
+        #--- xargs を使った並列転送アルゴリズム ---#
+    
+        # 1. s3cmd sync --dry-run で「転送が必要なファイル」のリストを作成
+        # 2. grep と sed でローカルのファイルパスのみを抽出
+        # 3. xargs -P {num_threads} で並列に s3cmd put を実行
+    
+        # シェルコマンドの組み立て
+        # 注意: ファイル名に引用符やスペースが含まれる可能性を考慮し、sedでパスを抽出し、xargsに渡します
+        cmd = (
+            f"s3cmd sync --recursive --no-check-md5 '{dirname_transferred}' '{s3_destination}' | "
+            f"grep 'upload:' | sed \"s/upload: '//;s/' -> .*//\" | "
+            f"xargs -I {{}} -P {num_threads} -n 1 s3cmd put --no-check-md5 \"{{}}\" \"{s3_destination}\""
+        )
+
+        log.info(f"Executing parallel upload with {num_threads} threads...")
+        log.info(f"Command: {cmd}")
+        try:
+            # パイプを使用するため shell=True で実行
+            proc = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
+            stdout, _ = proc.communicate()
+        
+            if stdout:
+                log.info(f"Output from transfer process:\n{stdout}")
+            
+            if proc.returncode == 0:
+                log.info(f"Upload finished successfully with {num_threads} threads.")
+            else:
+                log.error(f"Upload failed with returncode {proc.returncode}")
+            
+        except Exception as e:
+            log.error(f"Error during parallel transfer: {e}")
+    
+        '''
         proc = sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
         stdout, _ = proc.communicate()
         log.info(stdout)
         log.info(f"Upload finished with returncode {proc.returncode}")
+        '''
 
     #--- transfer_to_s3 ---#
 
