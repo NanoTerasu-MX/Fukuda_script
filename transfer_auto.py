@@ -17,7 +17,9 @@ import sys
 import yaml 
 import threading
 from pathlib import Path
-#%%
+
+# -*- coding: utf-8 -*-
+
 #--- logging configuration ---#
 log.basicConfig(
     filename='transfer.log',
