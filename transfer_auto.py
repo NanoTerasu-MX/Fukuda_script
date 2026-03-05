@@ -441,7 +441,7 @@ class AutoTransferAndProcess:
 
                         log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
                         # パスを引用符で囲む修正だけ追加（安全のため）
-                        cmd = (f"s3cmd put --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
+                        cmd = (f"s3cmd sync --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
                         log.info(f"Executing command: {cmd}")
                         sp.run(cmd, shell=True, check=True)
                         log.info(f"Transfer finished successfully.")
@@ -452,7 +452,7 @@ class AutoTransferAndProcess:
                 
                         log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
                         # ファイル単体なのでここも put (または sync) で確実に上書き
-                        cmd = (f"s3cmd put --force --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
+                        cmd = (f"s3cmd sync --force --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
                         log.info(f"Executing command: {cmd}")
                         sp.run(cmd, shell=True, check=True)
                         log.info(f"Transfer finished successfully.")
