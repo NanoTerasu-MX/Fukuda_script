@@ -407,7 +407,8 @@ class AutoTransferAndProcess:
         proc_dir = p.parents[1]
         kamo_proc_path = os.path.join(proc_dir, ".dataset_paths_for_kamo.txt")
         
-        output_path = (dataset_path).relative_to("/data")
+        tmp_path = Path(dataset_path)
+        output_path = tmp_path.relative_to("/data")
         output_path = os.path.join(self.destination_path_via_aoba, output_path)
         output_sets = f"{output_path}, {data_origin}, {data_total}"
 
