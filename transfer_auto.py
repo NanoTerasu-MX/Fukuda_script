@@ -406,7 +406,10 @@ class AutoTransferAndProcess:
 
         proc_dir = p.parents[1]
         kamo_proc_path = os.path.join(proc_dir, ".dataset_paths_for_kamo.txt")
-        output_path = f"{kamo_proc_path}, {data_origin}, {data_total}"
+        
+        output_path = (dataset_path).relative_to("/data")
+        output_path = os.path.join(self.destination_path_via_aoba, output_path)
+        output_sets = f"{output_path}, {data_origin}, {data_total}"
 
         log.info(f"dataset_path: {dataset_path}")
         log.info(f"base_parent: {base_parent}")
@@ -414,16 +417,16 @@ class AutoTransferAndProcess:
         log.info(f"write_kamo_proc_path: {write_kamo_proc_path}")
 
         log.info(f"kamo_proc_path: {kamo_proc_path}")
-        log.info(f"output_path to write: {output_path}")
+        log.info(f"output_path to write: {output_sets}")
 
         try:
             if not os.path.isfile(write_kamo_proc_path):
                 with open(write_kamo_proc_path, "w") as fout:
-                    fout.write(f"{output_path}\n")
+                    fout.write(f"{output_sets}\n")
                     log.info(f"Wrote path to {write_kamo_proc_path}: {output_path}")
             else:
                 with open(write_kamo_proc_path, "a") as fout:
-                    fout.write(f"{output_path}\n")
+                    fout.write(f"{output_sets}\n")
                     log.info(f"Appended path to {write_kamo_proc_path}: {output_path}")
         except ValueError as e:
             log.error(f"Failed to write to {write_kamo_proc_path}: {e}")
