@@ -357,15 +357,15 @@ class AutoTransferAndProcess:
         # 2. grep と sed でローカルのファイルパスのみを抽出
         # 3. xargs -P {num_threads} で並列に s3cmd put を実行
     
-        # シェルコマンドの組み立て
-        # 注意: ファイル名に引用符やスペースが含まれる可能性を考慮し、sedでパスを抽出し、xargsに渡します
-        # xargsの-Iオプションはパイプの前のgrepで抽出されたファイルパスを代入する
-        # -I は一行ずつ処理を行うが、それが並列に実行されるため、複数のファイルが同時に転送されることになります
+        # シェルコマンドの組み立て（修正版）
+        # 1. sed で ローカルパス と リモートパス の両方を抽出
+        # 2. xargs -n 2 で、2つの引数（ソースと送り先）をセットにして put に渡す
         cmd = (
-            f"s3cmd sync --dry-run --no-check-md5 '{dirname_transferred}' '{s3_destination}' | "
-            f"grep 'upload:' | sed \"s/upload: '//;s/' -> .*//\" | "
-            f"xargs -I {{}} -P {self.num_threads} s3cmd put --no-check-md5 \"{{}}\" \"{s3_destination}\""
-        )
+                f"s3cmd sync --dry-run --no-check-md5 '{dirname_transferred}' '{s3_destination}' | "
+                f"grep 'upload:' | "
+                f"sed -E \"s/upload: '([^']*)' -> '([^']*)'.*/\\1 \\2/\" | "
+                f"xargs -n 2 -P {self.num_threads} s3cmd put --no-check-md5"
+        )   
 
         log.info(f"Executing parallel upload with {self.num_threads} threads...")
         log.info(f"Command: {cmd}")
