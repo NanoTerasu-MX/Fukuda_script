@@ -408,7 +408,7 @@ class AutoTransferAndProcess:
         output_path = os.path.join(self.destination_path_via_aoba, output_path)
         output_sets = f"{output_path}, {data_origin}, {data_total}"
 
-        local_write_kamo_proc_path = os.path.join(base_parent, ".dataset_paths_for_kamo.txt")
+        local_write_kamo_proc_path = os.path.join(base_parent, "dataset_paths_for_kamo.txt")
 
         log.info(f"dataset_path: {dataset_path}")
         log.info(f"base_parent: {base_parent}")
