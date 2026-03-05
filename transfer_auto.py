@@ -362,7 +362,7 @@ class AutoTransferAndProcess:
         # xargsの-Iオプションはパイプの前のgrepで抽出されたファイルパスを代入する
         # -I は一行ずつ処理を行うが、それが並列に実行されるため、複数のファイルが同時に転送されることになります
         cmd = (
-            f"s3cmd sync --dry-run--recursive --no-check-md5 '{dirname_transferred}' '{s3_destination}' | "
+            f"s3cmd sync --dry-run --no-check-md5 '{dirname_transferred}' '{s3_destination}' | "
             f"grep 'upload:' | sed \"s/upload: '//;s/' -> .*//\" | "
             f"xargs -I {{}} -P {self.num_threads} s3cmd put --no-check-md5 \"{{}}\" \"{s3_destination}\""
         )
