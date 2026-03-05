@@ -405,7 +405,7 @@ class AutoTransferAndProcess:
         write_kamo_proc_path = os.path.join(self.destination_path_via_s3, dest_subdir)
         if not write_kamo_proc_path.endswith('/'):
            write_kamo_proc_path += '/'
-           
+
         tmp_path = Path(dataset_path)
         output_path = tmp_path.relative_to("/data")
         output_path = os.path.join(self.destination_path_via_aoba, output_path)
@@ -421,6 +421,48 @@ class AutoTransferAndProcess:
         log.info(f"local kamo_proc_path: {local_write_kamo_proc_path}")
         log.info(f"output_path to write: {output_sets}")
 
+
+        try:
+            # --- 重複チェック用の読み込み ---
+            existing_content = ""
+            if os.path.isfile(local_write_kamo_proc_path):
+                with open(local_write_kamo_proc_path, "r") as f:
+                    existing_content = f.read()
+
+            # すでに output_sets がファイル内に含まれているか確認
+            if f"{output_sets}\n" in existing_content:
+                log.info(f"Path already exists in {local_write_kamo_proc_path}. Skipping.")
+            else:
+                # --- ここから元のロジックを保持 ---
+                if not os.path.isfile(local_write_kamo_proc_path):
+                    with open(local_write_kamo_proc_path, "w") as fout:
+                        fout.write(f"{output_sets}\n")
+                        log.info(f"Wrote path to {local_write_kamo_proc_path}: {output_sets}")
+
+                        log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
+                        # パスを引用符で囲む修正だけ追加（安全のため）
+                        cmd = (f"s3cmd put --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
+                        log.info(f"Executing command: {cmd}")
+                        sp.run(cmd, shell=True, check=True)
+                        log.info(f"Transfer finished successfully.")
+                else:
+                    with open(local_write_kamo_proc_path, "a") as fout:
+                        fout.write(f"{output_sets}\n")
+                        log.info(f"Appended path to {local_write_kamo_proc_path}: {output_sets}")
+                
+                        log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
+                        # ファイル単体なのでここも put (または sync) で確実に上書き
+                        cmd = (f"s3cmd put --force --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
+                        log.info(f"Executing command: {cmd}")
+                        sp.run(cmd, shell=True, check=True)
+                        log.info(f"Transfer finished successfully.")
+                
+        except ValueError as e:
+            log.error(f"Failed to write to {local_write_kamo_proc_path}: {e}")
+        except Exception as e:
+            log.error(f"Unexpected error: {e}")
+
+        '''
         try:
             if not os.path.isfile(local_write_kamo_proc_path):
                 with open(local_write_kamo_proc_path, "w") as fout:
@@ -443,6 +485,7 @@ class AutoTransferAndProcess:
                     log.info(f"Transfer finished successfully.")
         except ValueError as e:
             log.error(f"Failed to write to {local_write_kamo_proc_path}: {e}")
+        '''
 
     #--- write_kamo_dataset_file ---#
 
