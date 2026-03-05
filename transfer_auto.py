@@ -425,7 +425,7 @@ class AutoTransferAndProcess:
                     log.info(f"Wrote path to {local_write_kamo_proc_path}: {output_sets}")
 
                     log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
-                    cmd = (f"s3cmd put --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
+                    cmd = (f"s3cmd put --no-check-md5 {local_write_kamo_proc_path} {write_kamo_proc_path}")
                     log.info(f"Executing command: {cmd}")
                     sp.run(cmd, shell=True, check=True)
                     log.info(f"Transfer finished successfully.")
@@ -434,7 +434,7 @@ class AutoTransferAndProcess:
                     fout.write(f"{output_sets}\n")
                     log.info(f"Appended path to {local_write_kamo_proc_path}: {output_sets}")
                     log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
-                    cmd = (f"s3cmd sync --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
+                    cmd = (f"s3cmd sync --no-check-md5 {local_write_kamo_proc_path} {write_kamo_proc_path}")
                     log.info(f"Executing command: {cmd}")
                     sp.run(cmd, shell=True, check=True)
                     log.info(f"Transfer finished successfully.")
