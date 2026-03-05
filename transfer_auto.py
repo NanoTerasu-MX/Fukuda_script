@@ -403,34 +403,43 @@ class AutoTransferAndProcess:
         base_parent = p.parents[2]
         dest_subdir = base_parent.relative_to("/data")
         write_kamo_proc_path = os.path.join(self.destination_path_via_aoba, dest_subdir, "dataset_paths_for_kamo.txt")
-
-        proc_dir = p.parents[1]
-        kamo_proc_path = os.path.join(proc_dir, ".dataset_paths_for_kamo.txt")
-        
         tmp_path = Path(dataset_path)
         output_path = tmp_path.relative_to("/data")
         output_path = os.path.join(self.destination_path_via_aoba, output_path)
         output_sets = f"{output_path}, {data_origin}, {data_total}"
+
+        local_write_kamo_proc_path = os.path.join(base_parent, ".dataset_paths_for_kamo.txt")
 
         log.info(f"dataset_path: {dataset_path}")
         log.info(f"base_parent: {base_parent}")
         log.info(f"dest_subdir: {dest_subdir}")
         log.info(f"write_kamo_proc_path: {write_kamo_proc_path}")
 
-        log.info(f"kamo_proc_path: {kamo_proc_path}")
+        log.info(f"local kamo_proc_path: {local_write_kamo_proc_path}")
         log.info(f"output_path to write: {output_sets}")
 
         try:
-            if not os.path.isfile(write_kamo_proc_path):
-                with open(write_kamo_proc_path, "w") as fout:
+            if not os.path.isfile(local_write_kamo_proc_path):
+                with open(local_write_kamo_proc_path, "w") as fout:
                     fout.write(f"{output_sets}\n")
-                    log.info(f"Wrote path to {write_kamo_proc_path}: {output_path}")
+                    log.info(f"Wrote path to {local_write_kamo_proc_path}: {output_sets}")
+
+                    log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
+                    cmd = (f"s3cmd put --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
+                    log.info(f"Executing command: {cmd}")
+                    sp.run(cmd, shell=True, check=True)
+                    log.info(f"Transfer finished successfully.")
             else:
-                with open(write_kamo_proc_path, "a") as fout:
+                with open(local_write_kamo_proc_path, "a") as fout:
                     fout.write(f"{output_sets}\n")
-                    log.info(f"Appended path to {write_kamo_proc_path}: {output_path}")
+                    log.info(f"Appended path to {local_write_kamo_proc_path}: {output_sets}")
+                    log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
+                    cmd = (f"s3cmd sync --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
+                    log.info(f"Executing command: {cmd}")
+                    sp.run(cmd, shell=True, check=True)
+                    log.info(f"Transfer finished successfully.")
         except ValueError as e:
-            log.error(f"Failed to write to {write_kamo_proc_path}: {e}")
+            log.error(f"Failed to write to {local_write_kamo_proc_path}: {e}")
 
     #--- write_kamo_dataset_file ---#
 
