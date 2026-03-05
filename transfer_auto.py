@@ -403,6 +403,9 @@ class AutoTransferAndProcess:
         base_parent = p.parents[2]
         dest_subdir = base_parent.relative_to("/data")
         write_kamo_proc_path = os.path.join(self.destination_path_via_s3, dest_subdir)
+        if not write_kamo_proc_path.endswith('/'):
+           write_kamo_proc_path += '/'
+           
         tmp_path = Path(dataset_path)
         output_path = tmp_path.relative_to("/data")
         output_path = os.path.join(self.destination_path_via_aoba, output_path)
