@@ -28,7 +28,7 @@ log.basicConfig(
 #--- logging configuration ---#
 
 class AutoTransferAndProcess:
-    def __init__(self, cfg: dict):
+    def __init__(self, cfg):
 
         # bss_dataset_path: /system/data_transfer/monitor.txt
         # データが測定されると更新されるBSS出力ファイルのパス
