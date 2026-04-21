@@ -341,7 +341,7 @@ class AutoTransferAndProcess:
         if data_idx is not None and data_idx >= 2:
             dirname_transferred = str(Path(*parts[:data_idx - 1]))
         else:
-            dirname_transferred = str(Path(data_dir).parent.parent)
+            dirname_transferred = str(Path(data_dir).parent)
 
         # remove /data prefix if present
         dest_subdir = os.path.dirname(dirname_transferred.replace("/data", "", 1) if dirname_transferred.startswith("/data") else dirname_transferred)
