@@ -308,7 +308,7 @@ class AutoTransferAndProcess:
                             log.info("Detected data directory. Transferring and preparing Kamo dataset file.")
                             log.info("Starting transfer to S3 for visit measurement data directory.")
                             self.transfer_to_s3(dataset_path)
-                            #self.write_kamo_dataset_file(dataset_path, data_origin=1, data_total=total)
+                            self.write_kamo_dataset_file(dataset_path, data_origin=1, data_total=total)
                         elif "other" == self.identify_data_or_other(dataset_path):
                             log.info("Non-data directory detected. Only transferring.")
                             self.transfer_to_s3(dataset_path)
