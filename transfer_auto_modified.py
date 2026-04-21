@@ -213,7 +213,7 @@ class AutoTransferAndProcess:
         # <other> (e.g., scan, check etc.)
 
         # パスがファイル名（例: *.cbf）を含む場合、ディレクトリ名を取得するためにos.path.dirnameを使用
-        if os.path.isfile(dataset_path) or "*" in dataset_path:
+        if os.path.isfile(dataset_path) or "*" in dataset_path or "?" in dataset_path:
             # 例: /data/.../data01/*.cbf -> /data/.../data01
             path_to_check = os.path.dirname(dataset_path)
         else:
