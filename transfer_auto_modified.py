@@ -399,16 +399,24 @@ class AutoTransferAndProcess:
             return
 
         p = Path(dataset_path)
-        base_parent = p.parents[2]
+
+        # CPSディレクトリを探してその親ディレクトリをbase_parentとする（CPSと同じ階層）
+        parts = p.parts
+        cps_idx = None
+        for i, part in enumerate(parts):
+            if "CPS" in part:
+                cps_idx = i
+        if cps_idx is not None and cps_idx >= 1:
+            base_parent = Path(*parts[:cps_idx])
+        else:
+            base_parent = p.parents[2]
+
         dest_subdir = base_parent.relative_to("/data")
-        # [FIX] str() で Path オブジェクトを明示的に文字列変換してから join する
         write_kamo_proc_path = os.path.join(self.destination_path_via_s3, str(dest_subdir))
         if not write_kamo_proc_path.endswith('/'):
            write_kamo_proc_path += '/'
 
-        tmp_path = Path(dataset_path)
-        output_path = tmp_path.relative_to("/data")
-        # [FIX] str() で Path オブジェクトを明示的に文字列変換してから join する
+        output_path = p.relative_to("/data")
         output_path = os.path.join(self.destination_path_via_aoba, str(output_path))
         output_sets = f"{output_path}, {data_origin}, {data_total}"
 
@@ -418,46 +426,28 @@ class AutoTransferAndProcess:
         log.info(f"base_parent: {base_parent}")
         log.info(f"dest_subdir: {dest_subdir}")
         log.info(f"write_kamo_proc_path: {write_kamo_proc_path}")
-
         log.info(f"local kamo_proc_path: {local_write_kamo_proc_path}")
         log.info(f"output_path to write: {output_sets}")
 
         try:
-            # --- 重複チェック用の読み込み ---
             existing_content = ""
             if os.path.isfile(local_write_kamo_proc_path):
                 with open(local_write_kamo_proc_path, "r") as f:
                     existing_content = f.read()
 
-            # すでに output_sets がファイル内に含まれているか確認
             if f"{output_sets}\n" in existing_content:
                 log.info(f"Path already exists in {local_write_kamo_proc_path}. Skipping.")
-            else:
-                if not os.path.isfile(local_write_kamo_proc_path):
-                    # [FIX] with open() ブロックを閉じてからs3cmd syncを実行する
-                    # （ファイルが完全にflush/closeされた後でないとS3に追記内容が反映されない）
-                    with open(local_write_kamo_proc_path, "w") as fout:
-                        fout.write(f"{output_sets}\n")
-                    log.info(f"Wrote path to {local_write_kamo_proc_path}: {output_sets}")
+                return
 
-                    log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
-                    cmd = (f"s3cmd sync --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
-                    log.info(f"Executing command: {cmd}")
-                    sp.run(cmd, shell=True, check=True)
-                    log.info(f"Transfer finished successfully.")
-                else:
-                    # [FIX] with open() ブロックを閉じてからs3cmd syncを実行する
-                    # （ファイルが完全にflush/closeされた後でないとS3に追記内容が反映されない）
-                    with open(local_write_kamo_proc_path, "a") as fout:
-                        fout.write(f"{output_sets}\n")
-                    log.info(f"Appended path to {local_write_kamo_proc_path}: {output_sets}")
+            with open(local_write_kamo_proc_path, "a") as fout:
+                fout.write(f"{output_sets}\n")
+            log.info(f"Wrote path to {local_write_kamo_proc_path}: {output_sets}")
 
-                    log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
-                    # ファイル単体なのでここも sync --force で確実に上書き
-                    cmd = (f"s3cmd sync --force --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'")
-                    log.info(f"Executing command: {cmd}")
-                    sp.run(cmd, shell=True, check=True)
-                    log.info(f"Transfer finished successfully.")
+            log.info(f"Transferring local kamo_proc_path to aoba: {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
+            cmd = f"s3cmd sync --force --no-check-md5 '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'"
+            log.info(f"Executing command: {cmd}")
+            sp.run(cmd, shell=True, check=True)
+            log.info(f"Transfer finished successfully.")
 
         except ValueError as e:
             log.error(f"Failed to write to {local_write_kamo_proc_path}: {e}")
