@@ -400,16 +400,23 @@ class AutoTransferAndProcess:
 
         p = Path(dataset_path)
 
+        # --- 修正箇所: ファイル名を除外してディレクトリのパーツのみを取得 ---
+        if os.path.isfile(dataset_path) or "*" in dataset_path or "?" in dataset_path or dataset_path.endswith((".cbf", ".h5")):
+            dir_parts = p.parent.parts
+        else:
+            dir_parts = p.parts
+
         # CPSディレクトリを探してその親ディレクトリをbase_parentとする（CPSと同じ階層）
-        parts = p.parts
         cps_idx = None
-        for i, part in enumerate(parts):
+        for i, part in enumerate(dir_parts):
             if "CPS" in part:
                 cps_idx = i
+                
         if cps_idx is not None and cps_idx >= 1:
-            base_parent = Path(*parts[:cps_idx])
+            base_parent = Path(*dir_parts[:cps_idx])
         else:
             base_parent = p.parents[2]
+        # ------------------------------------------------------------------
 
         dest_subdir = base_parent.relative_to("/data")
         write_kamo_proc_path = os.path.join(self.destination_path_via_s3, str(dest_subdir))
