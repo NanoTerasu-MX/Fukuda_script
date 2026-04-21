@@ -406,14 +406,15 @@ class AutoTransferAndProcess:
         else:
             dir_parts = p.parts
 
-        # CPSディレクトリを探してその親ディレクトリをbase_parentとする（CPSと同じ階層）
-        cps_idx = None
+        # Find the deepest data directory (data, data00, data01, ...) and use its parent
+        data_idx = None
         for i, part in enumerate(dir_parts):
-            if "CPS" in part:
-                cps_idx = i
-                
-        if cps_idx is not None and cps_idx >= 1:
-            base_parent = Path(*dir_parts[:cps_idx])
+            if "data" in part:
+                data_idx = i
+
+        if data_idx is not None and data_idx >= 1:
+            # Parent of the CPS directory (same level as CPS*)
+            base_parent = Path(*dir_parts[:data_idx - 1])
         else:
             base_parent = p.parents[2]
         # ------------------------------------------------------------------
