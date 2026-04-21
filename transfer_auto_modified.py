@@ -327,16 +327,26 @@ class AutoTransferAndProcess:
     def transfer_to_s3(self, dataset_path: str):
         #--- transfer to S3 ---#
         # obtain full local data directory path
-        data_dir = dataset_path.rstrip("/")
-        # obtain parent directory
-        tmp_path = os.path.dirname(data_dir)
+        if os.path.isfile(dataset_path) or "*" in dataset_path or "?" in dataset_path:
+            data_dir = os.path.dirname(dataset_path)
+        else:
+            data_dir = dataset_path.rstrip("/")
+
+        # find the deepest path component containing "data" and go 2 levels up
+        parts = Path(data_dir).parts
+        data_idx = None
+        for i, part in enumerate(parts):
+            if "data" in part:
+                data_idx = i
+        if data_idx is not None and data_idx >= 2:
+            dirname_transferred = str(Path(*parts[:data_idx - 1]))
+        else:
+            dirname_transferred = data_dir
+
         # remove /data prefix if present
-        dest_subdir = os.path.dirname(tmp_path.replace("/data", "", 1) if tmp_path.startswith("/data") else tmp_path)
-        # target directory for transfer
-        dirname_transferred = tmp_path
+        dest_subdir = os.path.dirname(dirname_transferred.replace("/data", "", 1) if dirname_transferred.startswith("/data") else dirname_transferred)
         
         log.info(f"data_dir: {data_dir}")
-        log.info(f"tmp_path: {tmp_path}")
         log.info(f"dest_subdir: {dest_subdir}")
         log.info(f"dirname_transferred: {dirname_transferred}")
 
