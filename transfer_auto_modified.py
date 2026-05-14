@@ -261,9 +261,18 @@ class AutoTransferAndProcess:
                             name=f"kamo-{Path(dataset_path).name[:40]}",
                             daemon=True,
                         )
+                        # Thread 2: sync parent-parent of data dir (excluding data subdirs)
+                        # added 2026-05-14 by Akiya Fukuda
+                        t_parent = threading.Thread(
+                            target=self._run_sync_parent_parent,
+                            args=(dataset_path,),
+                            name=f"sync-parent-{Path(dataset_path).name[:30]}",
+                            daemon=True,
+                        )
                         t_sync.start()
                         t_kamo.start()
-                        log.info(f"Threads started: '{t_sync.name}', '{t_kamo.name}'")
+                        t_parent.start()
+                        log.info(f"Threads started: '{t_sync.name}', '{t_kamo.name}', '{t_parent.name}'")
 
                     elif dir_type == "other":
                         log.info(f"[{measurement_type}] Non-data directory detected. "
@@ -301,6 +310,14 @@ class AutoTransferAndProcess:
             self.write_kamo_dataset_file(dataset_path, data_origin=data_origin, data_total=data_total)
         except Exception as e:
             log.error(f"[kamo thread] Uncaught exception for '{dataset_path}': {e}", exc_info=True)
+
+    # added 2026-05-14 by Akiya Fukuda: thread wrapper for sync_parent_parent_to_s3 (Thread 2 — parent-parent sync)
+    def _run_sync_parent_parent(self, dataset_path: str):
+        """Thread wrapper for sync_parent_parent_to_s3 — catches and logs any uncaught exception."""
+        try:
+            self.sync_parent_parent_to_s3(dataset_path)
+        except Exception as e:
+            log.error(f"[parent-parent thread] Uncaught exception for '{dataset_path}': {e}", exc_info=True)
 
     #--- updated transfer_to_s3 2025-12-16 by Akiya Fukuda ---#
     #--- updated transfer_to_s3 2026-02-26 by Akiya Fukuda ---#
@@ -398,6 +415,68 @@ class AutoTransferAndProcess:
             log.error(f"[transfer_to_s3] Error during parallel transfer: {e}")
 
     #--- transfer_to_s3 ---#
+
+    #--- added sync_parent_parent_to_s3 2026-05-14 by Akiya Fukuda: Thread 2 — sync parent-parent of data dir, excluding data subdirectories ---#
+    def sync_parent_parent_to_s3(self, dataset_path: str):
+        """
+        Syncs the directory 2 levels above the data directory (e.g. 2641a04/) to S3,
+        EXCLUDING data subdirectories (data00/, data01/, ...) which are handled by Thread A.
+        Captures scan results, log files, and other non-CBF experiment files.
+        """
+        if os.path.isfile(dataset_path) or "*" in dataset_path or "?" in dataset_path:
+            data_dir = os.path.dirname(dataset_path)
+        else:
+            data_dir = dataset_path.rstrip("/")
+
+        # Reuse same dirname_transferred logic as broad sync in transfer_to_s3
+        parts = Path(data_dir).parts
+        data_idx = None
+        for i, part in enumerate(parts):
+            if "data" in part:
+                data_idx = i
+
+        if data_idx is not None and data_idx >= 2:
+            dirname_transferred = str(Path(*parts[:data_idx - 1]))
+        else:
+            dirname_transferred = str(Path(data_dir).parent)
+
+        dest_subdir = os.path.dirname(
+            dirname_transferred.replace("/data", "", 1)
+            if dirname_transferred.startswith("/data")
+            else dirname_transferred
+        )
+        s3_destination = os.path.join(self.destination_path_via_s3, dest_subdir.lstrip("/"))
+        if not s3_destination.endswith("/"):
+            s3_destination += "/"
+
+        log.info(f"[sync_parent_parent] dirname_transferred: {dirname_transferred}")
+        log.info(f"[sync_parent_parent] s3_destination: {s3_destination}")
+
+        # --exclude '*/data[0-9]*/*' で data00/ data01/ 等の CBF ファイルを除外
+        # (Thread A の narrow sync が担当するため重複アップロードを防ぐ)
+        cmd = (
+            f"s3cmd sync --dry-run --no-check-md5 "
+            f"--exclude '*/data[0-9]*/*' "
+            f"'{dirname_transferred}' '{s3_destination}' | "
+            f"grep 'upload:' | "
+            f"sed -E \"s/upload: '([^']*)' -> '([^']*)'.*/\\1 \\2/\" | "
+            f"xargs -n 2 -P {self.num_threads} s3cmd put --no-check-md5"
+        )
+
+        log.info(f"[sync_parent_parent] Command: {cmd}")
+        try:
+            proc = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
+            stdout, _ = proc.communicate()
+            if stdout:
+                log.info(f"[sync_parent_parent] Output:\n{stdout}")
+            if proc.returncode == 0:
+                log.info(f"[sync_parent_parent] Finished successfully.")
+            else:
+                log.error(f"[sync_parent_parent] Failed with returncode {proc.returncode}")
+        except Exception as e:
+            log.error(f"[sync_parent_parent] Error: {e}")
+
+    #--- sync_parent_parent_to_s3 ---#
 
     #--- updated write_kamo_dataset_file 2026-05-14 by Akiya Fukuda: added _kamo_file_lock for thread-safe concurrent writes from Thread B ---#
     def write_kamo_dataset_file(self, dataset_path: str, data_origin: int = 1, data_total: int = None):
