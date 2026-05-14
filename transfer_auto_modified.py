@@ -430,9 +430,13 @@ class AutoTransferAndProcess:
 
         # Reuse same dirname_transferred logic as broad sync in transfer_to_s3
         parts = Path(data_dir).parts
+        # "Data" や "metadata" などに誤爆しないよう、
+        # data, data00, data01, data02 ... だけを data ディレクトリとして扱う
+        data_dir_re = re.compile(r"^data(\d\d)?$")
+
         data_idx = None
         for i, part in enumerate(parts):
-            if "data" in part:
+            if data_dir_re.match(part):
                 data_idx = i
 
         if data_idx is not None and data_idx >= 2:
