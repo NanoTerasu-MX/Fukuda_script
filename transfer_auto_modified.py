@@ -484,15 +484,19 @@ class AutoTransferAndProcess:
         log.info(f"[sync_parent_parent] dirname_transferred: {dirname_transferred}")
         log.info(f"[sync_parent_parent] s3_destination: {s3_destination}")
 
-        # --exclude '*/data[0-9]*/*' で data00/ data01/ 等の CBF ファイルを除外
-        # (Thread A の narrow sync が担当するため重複アップロードを防ぐ)
+        if not os.path.isdir(dirname_transferred):
+            log.error(f"[sync_parent_parent] Source dir not found: {dirname_transferred}")
+            return
+
+        # s3cmd sync 直接呼び出し（1プロセス）
+        # t_sync が xargs -P N で並列 put するため、t_parent は単一プロセスに抑える
+        # --exclude '*/data/*'         : data/ (桁なし) を除外
+        # --exclude '*/data[0-9][0-9]/*' : data00-data99 を除外
         cmd = (
-            f"s3cmd sync --dry-run --no-check-md5 "
-            f"--exclude '*/data[0-9]*/*' "
-            f"'{dirname_transferred}' '{s3_destination}' | "
-            f"grep 'upload:' | "
-            f"sed -E \"s/upload: '([^']*)' -> '([^']*)'.*/\\1 \\2/\" | "
-            f"xargs -n 2 -P {self.num_threads} s3cmd put --no-check-md5"
+            f"s3cmd sync --no-check-md5 "
+            f"--exclude '*/data/*' "
+            f"--exclude '*/data[0-9][0-9]/*' "
+            f"'{dirname_transferred}' '{s3_destination}'"
         )
 
         log.info(f"[sync_parent_parent] Command: {cmd}")
