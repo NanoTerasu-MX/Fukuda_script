@@ -389,13 +389,14 @@ class AutoTransferAndProcess:
             probe_proc = sp.run(probe, shell=True, capture_output=True, text=True)
             if not probe_proc.stdout.strip():
                 log.info(f"[transfer_to_s3] No matching files yet for prefix='{cbf_prefix}'. Will retry later.")
-            return False
-
+                return False
+            
             # xargs -P 1 固定: Pythonセマフォ(_sem_t1)が subprocess 単位で効くため
             cmd = (
                 f"find '{data_dir}' -maxdepth 1 -name '{cbf_prefix}*.cbf' -type f | "
                 f"xargs -P 1 -I{{}} s3cmd put --no-check-md5 {{}} '{s3_data_dir}'"
             )
+
         else:
             # ----------------------------------------------------------------
             # Broad sync: 2 levels above the data directory (original logic).
