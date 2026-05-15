@@ -68,8 +68,10 @@ class AutoTransferAndProcess:
         self._inflight_lock = threading.Lock()
         self.inflight_counts: dict = {}
 
-        # s3cmd 同時実行数の上限（transfer_to_s3 / sync_parent_parent / write_kamo すべて共有）
-        self._s3cmd_sem = threading.BoundedSemaphore(cfg["max_s3cmd_procs"])
+        # s3cmd 用途別セマフォ（t1: データ転送, t2: 親親sync, t3: kamo put）
+        self._sem_t1 = threading.BoundedSemaphore(cfg["max_s3cmd_procs_thread1"])
+        self._sem_t2 = threading.BoundedSemaphore(cfg["max_s3cmd_procs_thread2"])
+        self._sem_t3 = threading.BoundedSemaphore(cfg["max_s3cmd_procs_thread3"])
         # sync_parent_parent_to_s3 用の dirname_transferred 単位 inflight/processed 抑止
         self._parent_inflight: set = set()
         self._parent_processed: set = set()
@@ -386,10 +388,10 @@ class AutoTransferAndProcess:
             log.info(f"[transfer_to_s3] data_dir: {data_dir}")
             log.info(f"[transfer_to_s3] s3_data_dir: {s3_data_dir}")
 
-            # find matching files and upload each one in parallel
+            # xargs -P 1 固定: Pythonセマフォ(_sem_t1)が subprocess 単位で効くため
             cmd = (
                 f"find '{data_dir}' -maxdepth 1 -name '{cbf_prefix}*.cbf' -type f | "
-                f"xargs -P {self.num_threads} -I{{}} s3cmd put --no-check-md5 {{}} '{s3_data_dir}'"
+                f"xargs -P 1 -I{{}} s3cmd put --no-check-md5 {{}} '{s3_data_dir}'"
             )
         else:
             # ----------------------------------------------------------------
@@ -428,15 +430,17 @@ class AutoTransferAndProcess:
                 f"s3cmd sync --dry-run --no-check-md5 '{dirname_transferred}' '{s3_destination}' | "
                 f"grep 'upload:' | "
                 f"sed -E \"s/upload: '([^']*)' -> '([^']*)'.*/\\1 \\2/\" | "
-                f"xargs -n 2 -P {self.num_threads} s3cmd put --no-check-md5"
+                f"xargs -n 2 -P 1 s3cmd put --no-check-md5"
             )
 
-        log.info(f"[transfer_to_s3] Executing parallel upload with {self.num_threads} threads...")
         log.info(f"[transfer_to_s3] Command: {cmd}")
         try:
-            with self._s3cmd_sem:
+            log.debug(f"[sem_t1] acquiring...")
+            with self._sem_t1:
+                log.debug(f"[sem_t1] acquired")
                 proc = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
                 stdout, _ = proc.communicate()
+            log.debug(f"[sem_t1] released")
 
             if stdout:
                 log.info(f"[transfer_to_s3] Output:\n{stdout}")
@@ -514,9 +518,12 @@ class AutoTransferAndProcess:
 
         log.info(f"[sync_parent_parent] Command: {cmd}")
         try:
-            with self._s3cmd_sem:
+            log.debug(f"[sem_t2] acquiring...")
+            with self._sem_t2:
+                log.debug(f"[sem_t2] acquired")
                 proc = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
                 stdout, _ = proc.communicate()
+            log.debug(f"[sem_t2] released")
             if stdout:
                 log.info(f"[sync_parent_parent] Output:\n{stdout}")
             if proc.returncode == 0:
@@ -597,8 +604,11 @@ class AutoTransferAndProcess:
                 log.info(f"[write_kamo] Uploading {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
                 cmd = f"s3cmd put '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'"
                 log.info(f"[write_kamo] Command: {cmd}")
-                with self._s3cmd_sem:
+                log.debug(f"[sem_t3] acquiring...")
+                with self._sem_t3:
+                    log.debug(f"[sem_t3] acquired")
                     sp.run(cmd, shell=True, check=True)
+                log.debug(f"[sem_t3] released")
                 log.info(f"[write_kamo] dataset_paths_for_kamo.txt transferred successfully.")
 
         except ValueError as e:
