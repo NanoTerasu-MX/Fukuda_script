@@ -64,6 +64,10 @@ class AutoTransferAndProcess:
         # added 2026-05-14 by Akiya Fukuda: Lock for thread-safe writes to dataset_paths_for_kamo.txt
         self._kamo_file_lock = threading.Lock()
 
+        # In-flight suppression: reference-count per dataset_path (3 for data, 1 for other)
+        self._inflight_lock = threading.Lock()
+        self.inflight_counts: dict = {}
+
     #--- __init__ ---#
 
     # updated path 2025-11-26 by Akiya Fukuda
@@ -242,6 +246,14 @@ class AutoTransferAndProcess:
                     measurement_type = self.identify_auto_or_visit(output_path_by_bss)
                     dir_type = self.identify_data_or_other(dataset_path)
 
+                    n_threads = 3 if dir_type == "data" else 1
+                    with self._inflight_lock:
+                        if dataset_path in self.inflight_counts:
+                            log.info(f"[inflight] '{dataset_path}' already in-flight, skipping.")
+                            continue
+                        self.inflight_counts[dataset_path] = n_threads
+                        log.debug(f"[inflight] Added '{dataset_path}' (count={n_threads})")
+
                     if dir_type == "data":
                         log.info(f"[{measurement_type}] Data directory detected. "
                                  f"Starting parallel sync + kamo threads "
@@ -295,6 +307,16 @@ class AutoTransferAndProcess:
 
     #--- proc ---#
 
+    def _release_inflight(self, dataset_path: str):
+        with self._inflight_lock:
+            count = self.inflight_counts.get(dataset_path, 1) - 1
+            if count <= 0:
+                self.inflight_counts.pop(dataset_path, None)
+                log.debug(f"[inflight] Released '{dataset_path}' (count=0)")
+            else:
+                self.inflight_counts[dataset_path] = count
+                log.debug(f"[inflight] Decremented '{dataset_path}' (count={count})")
+
     # added 2026-05-14 by Akiya Fukuda: thread wrapper for transfer_to_s3 (Thread A — data sync)
     def _run_transfer_to_s3(self, dataset_path: str, cbf_prefix: str):
         """Thread wrapper for transfer_to_s3 — catches and logs any uncaught exception."""
@@ -302,6 +324,8 @@ class AutoTransferAndProcess:
             self.transfer_to_s3(dataset_path, cbf_prefix=cbf_prefix)
         except Exception as e:
             log.error(f"[sync thread] Uncaught exception for '{dataset_path}': {e}", exc_info=True)
+        finally:
+            self._release_inflight(dataset_path)
 
     # added 2026-05-14 by Akiya Fukuda: thread wrapper for write_kamo_dataset_file (Thread B — kamo file)
     def _run_write_kamo(self, dataset_path: str, data_origin: int, data_total: int):
@@ -310,6 +334,8 @@ class AutoTransferAndProcess:
             self.write_kamo_dataset_file(dataset_path, data_origin=data_origin, data_total=data_total)
         except Exception as e:
             log.error(f"[kamo thread] Uncaught exception for '{dataset_path}': {e}", exc_info=True)
+        finally:
+            self._release_inflight(dataset_path)
 
     # added 2026-05-14 by Akiya Fukuda: thread wrapper for sync_parent_parent_to_s3 (Thread 2 — parent-parent sync)
     def _run_sync_parent_parent(self, dataset_path: str):
@@ -318,6 +344,8 @@ class AutoTransferAndProcess:
             self.sync_parent_parent_to_s3(dataset_path)
         except Exception as e:
             log.error(f"[parent-parent thread] Uncaught exception for '{dataset_path}': {e}", exc_info=True)
+        finally:
+            self._release_inflight(dataset_path)
 
     #--- updated transfer_to_s3 2025-12-16 by Akiya Fukuda ---#
     #--- updated transfer_to_s3 2026-02-26 by Akiya Fukuda ---#
