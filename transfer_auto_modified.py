@@ -231,11 +231,10 @@ class AutoTransferAndProcess:
                 dataset_path = info["path"]
                 total = info["total"]
 
-                if i < last_index and dataset_path in self.processed_files:
-                    log.info(f"Dataset path already processed: {dataset_path}. Skipping...")
+                if dataset_path in self.processed_files:
+                    log.debug(f"Dataset path already processed: {dataset_path}. Skipping.")
                     continue
-                else:
-                    log.info(f"Syncing dataset: {dataset_path} (Latest: {i == last_index})")
+                log.info(f"Syncing dataset: {dataset_path} (Latest: {i == last_index})")
 
                 if dataset_path not in self.processed_files:
                     log.info(f"Processing new dataset path: {dataset_path}")
@@ -312,7 +311,8 @@ class AutoTransferAndProcess:
             count = self.inflight_counts.get(dataset_path, 1) - 1
             if count <= 0:
                 self.inflight_counts.pop(dataset_path, None)
-                log.debug(f"[inflight] Released '{dataset_path}' (count=0)")
+                self.processed_files.add(dataset_path)
+                log.debug(f"[inflight] Released '{dataset_path}' (count=0) → marked processed")
             else:
                 self.inflight_counts[dataset_path] = count
                 log.debug(f"[inflight] Decremented '{dataset_path}' (count={count})")
