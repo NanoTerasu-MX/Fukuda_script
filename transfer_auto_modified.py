@@ -68,6 +68,12 @@ class AutoTransferAndProcess:
         self._inflight_lock = threading.Lock()
         self.inflight_counts: dict = {}
 
+        # s3cmd 同時実行数の上限（transfer_to_s3 / sync_parent_parent / write_kamo すべて共有）
+        self._s3cmd_sem = threading.BoundedSemaphore(cfg["max_s3cmd_procs"])
+        # sync_parent_parent_to_s3 用の dirname_transferred 単位 inflight/processed 抑止
+        self._parent_inflight: set = set()
+        self._parent_processed: set = set()
+
     #--- __init__ ---#
 
     # updated path 2025-11-26 by Akiya Fukuda
@@ -428,8 +434,9 @@ class AutoTransferAndProcess:
         log.info(f"[transfer_to_s3] Executing parallel upload with {self.num_threads} threads...")
         log.info(f"[transfer_to_s3] Command: {cmd}")
         try:
-            proc = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
-            stdout, _ = proc.communicate()
+            with self._s3cmd_sem:
+                proc = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
+                stdout, _ = proc.communicate()
 
             if stdout:
                 log.info(f"[transfer_to_s3] Output:\n{stdout}")
@@ -488,6 +495,12 @@ class AutoTransferAndProcess:
             log.error(f"[sync_parent_parent] Source dir not found: {dirname_transferred}")
             return
 
+        with self._inflight_lock:
+            if dirname_transferred in self._parent_processed or dirname_transferred in self._parent_inflight:
+                log.info(f"[sync_parent_parent] '{dirname_transferred}' already done/in-flight, skipping.")
+                return
+            self._parent_inflight.add(dirname_transferred)
+
         # s3cmd sync 直接呼び出し（1プロセス）
         # t_sync が xargs -P N で並列 put するため、t_parent は単一プロセスに抑える
         # --exclude '*/data/*'         : data/ (桁なし) を除外
@@ -501,8 +514,9 @@ class AutoTransferAndProcess:
 
         log.info(f"[sync_parent_parent] Command: {cmd}")
         try:
-            proc = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
-            stdout, _ = proc.communicate()
+            with self._s3cmd_sem:
+                proc = sp.Popen(cmd, shell=True, stdout=sp.PIPE, stderr=sp.STDOUT, text=True)
+                stdout, _ = proc.communicate()
             if stdout:
                 log.info(f"[sync_parent_parent] Output:\n{stdout}")
             if proc.returncode == 0:
@@ -511,6 +525,10 @@ class AutoTransferAndProcess:
                 log.error(f"[sync_parent_parent] Failed with returncode {proc.returncode}")
         except Exception as e:
             log.error(f"[sync_parent_parent] Error: {e}")
+        finally:
+            with self._inflight_lock:
+                self._parent_inflight.discard(dirname_transferred)
+                self._parent_processed.add(dirname_transferred)
 
     #--- sync_parent_parent_to_s3 ---#
 
@@ -579,7 +597,8 @@ class AutoTransferAndProcess:
                 log.info(f"[write_kamo] Uploading {local_write_kamo_proc_path} -> {write_kamo_proc_path}")
                 cmd = f"s3cmd put '{local_write_kamo_proc_path}' '{write_kamo_proc_path}'"
                 log.info(f"[write_kamo] Command: {cmd}")
-                sp.run(cmd, shell=True, check=True)
+                with self._s3cmd_sem:
+                    sp.run(cmd, shell=True, check=True)
                 log.info(f"[write_kamo] dataset_paths_for_kamo.txt transferred successfully.")
 
         except ValueError as e:
