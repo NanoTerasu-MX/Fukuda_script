@@ -384,6 +384,13 @@ class AutoTransferAndProcess:
             log.info(f"[transfer_to_s3] data_dir: {data_dir}")
             log.info(f"[transfer_to_s3] s3_data_dir: {s3_data_dir}")
 
+            # 1つでも対象ファイルがあるか確認（なければ未完了扱い）
+            probe = f"find '{data_dir}' -maxdepth 1 -name '{cbf_prefix}*.cbf' -type f | head -n 1"
+            probe_proc = sp.run(probe, shell=True, capture_output=True, text=True)
+            if not probe_proc.stdout.strip():
+                log.info(f"[transfer_to_s3] No matching files yet for prefix='{cbf_prefix}'. Will retry later.")
+            return False
+
             # xargs -P 1 固定: Pythonセマフォ(_sem_t1)が subprocess 単位で効くため
             cmd = (
                 f"find '{data_dir}' -maxdepth 1 -name '{cbf_prefix}*.cbf' -type f | "
