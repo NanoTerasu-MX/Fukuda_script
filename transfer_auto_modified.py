@@ -253,7 +253,7 @@ class AutoTransferAndProcess:
                     measurement_type = self.identify_auto_or_visit(output_path_by_bss)
                     dir_type = self.identify_data_or_other(dataset_path)
 
-                    n_threads = 3 if dir_type == "data" else 1
+                    n_threads = 2 if dir_type == "data" else 1
                     with self._inflight_lock:
                         if dataset_path in self.inflight_counts:
                             log.info(f"[inflight] '{dataset_path}' already in-flight, skipping.")
@@ -269,17 +269,11 @@ class AutoTransferAndProcess:
                         # Thread A: data transfer (narrowed by prefix for multi-measurement)
                         t_sync = threading.Thread(
                             target=self._run_transfer_to_s3,
-                            args=(dataset_path, cbf_prefix),
+                            args=(dataset_path, cbf_prefix, 1, total),
                             name=f"sync-{Path(dataset_path).name[:40]}",
                             daemon=True,
                         )
-                        # Thread B: write dataset_paths_for_kamo.txt and upload to S3
-                        t_kamo = threading.Thread(
-                            target=self._run_write_kamo,
-                            args=(dataset_path, 1, total),
-                            name=f"kamo-{Path(dataset_path).name[:40]}",
-                            daemon=True,
-                        )
+                        
                         # Thread 2: sync parent-parent of data dir (excluding data subdirs)
                         # added 2026-05-14 by Akiya Fukuda
                         t_parent = threading.Thread(
@@ -289,9 +283,8 @@ class AutoTransferAndProcess:
                             daemon=True,
                         )
                         t_sync.start()
-                        t_kamo.start()
                         t_parent.start()
-                        log.info(f"Threads started: '{t_sync.name}', '{t_kamo.name}', '{t_parent.name}'")
+                        log.info(f"Threads started: '{t_sync.name}', '{t_parent.name}'")
 
                     elif dir_type == "other":
                         log.info(f"[{measurement_type}] Non-data directory detected. "
@@ -326,24 +319,27 @@ class AutoTransferAndProcess:
                 log.debug(f"[inflight] Decremented '{dataset_path}' (count={count})")
 
     # added 2026-05-14 by Akiya Fukuda: thread wrapper for transfer_to_s3 (Thread A — data sync)
-    def _run_transfer_to_s3(self, dataset_path: str, cbf_prefix: str):
+    def _run_transfer_to_s3(self, dataset_path: str, cbf_prefix: str, data_origin: int, data_total: int):
         """Thread wrapper for transfer_to_s3 — catches and logs any uncaught exception."""
         try:
-            self.transfer_to_s3(dataset_path, cbf_prefix=cbf_prefix)
+            ok = self.transfer_to_s3(dataset_path, cbf_prefix=cbf_prefix)
+            if ok:
+                # Only after data transfer succeeds, update kamo file + upload (thread3 semaphore)
+                try:
+                    self.write_kamo_dataset_file(
+                        dataset_path,
+                        data_origin=data_origin,
+                        data_total=data_total,
+                    )
+                except Exception as e:
+                    log.error(f"[kamo-after-sync] Uncaught exception for '{dataset_path}': {e}", exc_info=True)
+            else:
+                log.warning(f"[sync thread] transfer_to_s3 failed; not writing kamo path for '{dataset_path}'")
         except Exception as e:
             log.error(f"[sync thread] Uncaught exception for '{dataset_path}': {e}", exc_info=True)
         finally:
             self._release_inflight(dataset_path)
-
-    # added 2026-05-14 by Akiya Fukuda: thread wrapper for write_kamo_dataset_file (Thread B — kamo file)
-    def _run_write_kamo(self, dataset_path: str, data_origin: int, data_total: int):
-        """Thread wrapper for write_kamo_dataset_file — catches and logs any uncaught exception."""
-        try:
-            self.write_kamo_dataset_file(dataset_path, data_origin=data_origin, data_total=data_total)
-        except Exception as e:
-            log.error(f"[kamo thread] Uncaught exception for '{dataset_path}': {e}", exc_info=True)
-        finally:
-            self._release_inflight(dataset_path)
+    
 
     # added 2026-05-14 by Akiya Fukuda: thread wrapper for sync_parent_parent_to_s3 (Thread 2 — parent-parent sync)
     def _run_sync_parent_parent(self, dataset_path: str):
@@ -358,7 +354,7 @@ class AutoTransferAndProcess:
     #--- updated transfer_to_s3 2025-12-16 by Akiya Fukuda ---#
     #--- updated transfer_to_s3 2026-02-26 by Akiya Fukuda ---#
     #--- updated transfer_to_s3 2026-05-14 by Akiya Fukuda: added cbf_prefix parameter; narrow sync (find | xargs s3cmd put) when prefix present, broad sync (original) otherwise ---#
-    def transfer_to_s3(self, dataset_path: str, cbf_prefix: str = None):
+    def transfer_to_s3(self, dataset_path: str, cbf_prefix: str = None) -> bool:
         #--- transfer to S3 ---#
         # obtain full local data directory path
         if os.path.isfile(dataset_path) or "*" in dataset_path or "?" in dataset_path:
@@ -447,11 +443,14 @@ class AutoTransferAndProcess:
 
             if proc.returncode == 0:
                 log.info(f"[transfer_to_s3] Upload finished successfully.")
+                return True
             else:
                 log.error(f"[transfer_to_s3] Upload failed with returncode {proc.returncode}")
+                return False
 
         except Exception as e:
             log.error(f"[transfer_to_s3] Error during parallel transfer: {e}")
+            return False
 
     #--- transfer_to_s3 ---#
 
