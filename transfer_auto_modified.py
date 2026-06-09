@@ -319,20 +319,22 @@ class AutoTransferAndProcess:
                 log.debug(f"[inflight] Decremented '{dataset_path}' (count={count})")
 
     # added 2026-05-14 by Akiya Fukuda: thread wrapper for transfer_to_s3 (Thread A — data sync)
-    def _run_transfer_to_s3(self, dataset_path: str, cbf_prefix: str, data_origin: int, data_total: int):
+    def _run_transfer_to_s3(self, dataset_path: str, cbf_prefix: str, data_origin: int = None, data_total: int = None):
         """Thread wrapper for transfer_to_s3 — catches and logs any uncaught exception."""
         try:
             ok = self.transfer_to_s3(dataset_path, cbf_prefix=cbf_prefix)
             if ok:
                 # Only after data transfer succeeds, update kamo file + upload (thread3 semaphore)
-                try:
-                    self.write_kamo_dataset_file(
-                        dataset_path,
-                        data_origin=data_origin,
-                        data_total=data_total,
-                    )
-                except Exception as e:
-                    log.error(f"[kamo-after-sync] Uncaught exception for '{dataset_path}': {e}", exc_info=True)
+                # data_origin/data_total are None for "other" (non-data) directories — skip kamo update
+                if data_origin is not None and data_total is not None:
+                    try:
+                        self.write_kamo_dataset_file(
+                            dataset_path,
+                            data_origin=data_origin,
+                            data_total=data_total,
+                        )
+                    except Exception as e:
+                        log.error(f"[kamo-after-sync] Uncaught exception for '{dataset_path}': {e}", exc_info=True)
             else:
                 log.warning(f"[sync thread] transfer_to_s3 failed; not writing kamo path for '{dataset_path}'")
         except Exception as e:
